@@ -1,5 +1,6 @@
-package com._7.bookinghospital.hospital_service.application.service.dto.request;
+package com._7.bookinghospital.hospital_service.application.dto.request;
 
+import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import lombok.Getter;
 import org.apache.commons.lang.StringUtils;
 
@@ -15,32 +16,28 @@ public class UpdateHospitalRequestDto {
     private LocalTime openHour;
     private LocalTime closeHour;
 
-    public <T> Map<String, T> extractUpdateFields() {
-        Map<String, T> fields = new HashMap<>();
+    public Map<String, Object> extractUpdateFields() {
+        Map<String, Object> fields = new HashMap<>();
 
-        // if(this.address != null && !this.address.isBlank()) {
         if(StringUtils.isNotBlank(address)) {
-            fields.put("address", (T) address);
+            fields.put("address", (String) address);
         }
 
-         // if (phone != null && !phone.isBlank()) {
         if(StringUtils.isNotBlank(phone)) {
-            fields.put("phone", (T) phone);
+            fields.put("phone", (String) phone);
         }
 
-         // if (description != null && !description.isBlank()) {
         if(StringUtils.isNotBlank(description)) {
-            fields.put("description", (T) description);
+            fields.put("description", (String) description);
         }
 
         if (openHour != null) {
-            fields.put("openHour", (T) openHour);
+            fields.put("openHour", (LocalTime) openHour);
         }
 
         if (closeHour != null) {
-            fields.put("closeHour", (T) closeHour);
+            fields.put("closeHour", (LocalTime) closeHour);
         }
-
         return fields;
     }
 }

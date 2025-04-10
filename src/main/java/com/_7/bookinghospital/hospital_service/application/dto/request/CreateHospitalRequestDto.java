@@ -1,12 +1,16 @@
-package com._7.bookinghospital.hospital_service.application.service.dto.request;
+package com._7.bookinghospital.hospital_service.application.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.time.LocalTime;
 
 @Getter
+@Builder
+@ToString
 public class CreateHospitalRequestDto {
         @NotBlank(message = "병원 이름은 필수입니다.")
         private String name;
