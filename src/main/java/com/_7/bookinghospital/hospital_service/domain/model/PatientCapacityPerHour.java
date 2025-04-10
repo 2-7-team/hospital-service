@@ -1,0 +1,39 @@
+package com._7.bookinghospital.hospital_service.domain.model;
+
+import jakarta.persistence.*;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
+
+import java.time.LocalTime;
+import java.util.UUID;
+
+@Entity
+@Getter
+@NoArgsConstructor
+@Table(name = "p_patient_capacity_per_hours")
+public class PatientCapacityPerHour extends BaseEntity {
+    @Id
+    // @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @UuidGenerator
+    @Column(nullable = false)
+    private UUID id; // 특정 병원의 운영 시간대의 특정 시간대에 대한 정보를 식별할 수 있는 id
+
+    @ManyToOne // PatientCapacityPerHours 과 Hospital 의 관계는 다대일
+    @JoinColumn(name="hospital_id") // 외래키 컬럼 이름 지정
+    private Hospital hospital;
+
+    @Column(nullable = false)
+    private LocalTime time; // time 의 값이 09:00 일 경우 오전 9~10 사이에 capacity 의 수만큼 병원에서 진료할 수 있다.
+
+    @Column(nullable = false)
+    private Integer capacity; // 병원에서 진료할 수 있는 환자수
+
+    @Builder(builderMethodName = "createPatientCapacityPerHourBuilder")
+    public PatientCapacityPerHour(Hospital hospital, LocalTime time, Integer capacity) {
+        this.hospital = hospital;
+        this.time = time;
+        this.capacity = capacity;
+    }
+}
