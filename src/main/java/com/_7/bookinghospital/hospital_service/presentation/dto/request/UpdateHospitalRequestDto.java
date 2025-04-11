@@ -1,4 +1,4 @@
-package com._7.bookinghospital.hospital_service.application.dto.request;
+package com._7.bookinghospital.hospital_service.presentation.dto.request;
 
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import lombok.Getter;
