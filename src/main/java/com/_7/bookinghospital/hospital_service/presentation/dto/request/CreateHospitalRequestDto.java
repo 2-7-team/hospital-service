@@ -1,4 +1,4 @@
-package com._7.bookinghospital.hospital_service.application.dto.request;
+package com._7.bookinghospital.hospital_service.presentation.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

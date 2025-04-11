@@ -1,9 +1,11 @@
 package com._7.bookinghospital.hospital_service.domain.model;
 
+import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneScheduleResponseDto;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalTime;
@@ -12,8 +14,9 @@ import java.util.UUID;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "p_patient_capacity_per_hours")
-public class PatientCapacityPerHour extends BaseEntity {
+@Table(name = "p_schedules")
+@ToString
+public class Schedule extends BaseEntity {
     @Id
     // @GeneratedValue(strategy = GenerationType.IDENTITY)
     @UuidGenerator
@@ -30,10 +33,24 @@ public class PatientCapacityPerHour extends BaseEntity {
     @Column(nullable = false)
     private Integer capacity; // 병원에서 진료할 수 있는 환자수
 
-    @Builder(builderMethodName = "createPatientCapacityPerHourBuilder")
-    public PatientCapacityPerHour(Hospital hospital, LocalTime time, Integer capacity) {
+    @Builder(builderMethodName = "createScheduleBuilder")
+    public Schedule(Hospital hospital, LocalTime time, Integer capacity) {
         this.hospital = hospital;
         this.time = time;
         this.capacity = capacity;
+    }
+
+    // (예정) 도메인 계층에서 presentation 의 dto 를 사용하는 것은 계층 위배, 추후 개선
+    public FindOneScheduleResponseDto toFindOneScheduleResponseDto() {
+        return new FindOneScheduleResponseDto (this.hospital.getName(), this.time, this.capacity);
+    }
+
+    // 운영시간대별 진료 가능 환자수 변경에 사용될 메서드
+    public void updateCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public void changeHospital(Hospital hospital) {
+        this.hospital = hospital;
     }
 }
