@@ -16,15 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class ScheduleService {
     private final HospitalRepository hospitalRepository;
     private final ScheduleRepository scheduleRepository;
 
-    @Transactional
     public CreateScheduleResponseDto create(UUID hospitalId, @Valid CreateScheduleRequestDto dto) {
         log.info("schedule service");
         // 1. 전달받은 hospitalId 존재 여부 확인
@@ -69,12 +70,17 @@ public class ScheduleService {
             throw new NotFoundException("병원이 존재하지 않습니다.");
         }
 
-        // 2. 병원 존재 but 해당 병원이 schedule 을 등록하지 않았을 경우 예외 발생시키기
-        // (의문) hospital repository 로 병원 스케쥴 데이터를 얻어야 하는가?
+        // 2. 병원 존재 but 해당 병원이 schedule 이 아예 없을 경우,
+        // 그리고 일정들은 존재하는데, 전달받은 schedule id 에 기반한 일정이 없는 경우 예외 발생시키기
         Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
 
         // 2-1. 애그리거트 루트인 병원 도메인을 통해 해당 병원의 스케쥴 정보를 모두 가져와 schedule id 가 존재하는지 확인
+        // 일차적으로 해당 병원이 등록한 스케쥴 정보가 있는지 확인
         List<Schedule> schedules = findOneHospital.getSchedules();
+
+        if(schedules.isEmpty()) {
+            throw new NotFoundException("시간대별 운영 정보가 존재하지 않습니다.");
+        }
 
         return schedules
                 .stream()
@@ -84,5 +90,28 @@ public class ScheduleService {
                 // map(schedule -> schedule.toFindOneScheduleResponseDto())
                 .map(Schedule::toFindOneScheduleResponseDto) // Stream<FindOneScheduleResponseDto>
                 .orElseThrow(() -> new NotFoundException("조회하신 스케쥴은 존재하지 않습니다."));
+    }
+
+    public List<FindOneScheduleResponseDto> findAllSchedules(UUID hospitalId) {
+        // (예정) findOneScheduleByHospital() 메서드와 중복되는 로직 추출
+        // 1. 전달받은 hospitalId 존재 여부 확인
+        if(!hospitalRepository.existsHospital(hospitalId)) {
+            throw new NotFoundException("병원이 존재하지 않습니다.");
+        }
+
+        // 2. 병원 존재 but 해당 병원이 schedule 이 아예 없을 경우
+        // 2-1. 애그리거트 루트인 병원 도메인을 통해 해당 병원의 스케쥴 정보를 모두 가져오기
+        // 일차적으로 해당 병원이 등록한 스케쥴 정보가 있는지 확인
+        Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
+        List<Schedule> schedules = findOneHospital.getSchedules();
+
+        if(schedules.isEmpty()) {
+            throw new NotFoundException("시간대별 운영 정보가 존재하지 않습니다.");
+        }
+
+        return schedules
+                .stream()
+                .map(Schedule::toFindOneScheduleResponseDto)
+                .toList();
     }
 }

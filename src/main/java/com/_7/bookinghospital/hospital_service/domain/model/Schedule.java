@@ -40,6 +40,7 @@ public class Schedule extends BaseEntity {
         this.capacity = capacity;
     }
 
+    // (예정) 도메인 계층에서 presentation 의 dto 를 사용하는 것은 계층 위배, 추후 개선
     public FindOneScheduleResponseDto toFindOneScheduleResponseDto() {
         return new FindOneScheduleResponseDto (this.hospital.getName(), this.time, this.capacity);
     }

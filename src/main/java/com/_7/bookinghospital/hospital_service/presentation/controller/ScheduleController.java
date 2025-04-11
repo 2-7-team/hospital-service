@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -39,4 +40,12 @@ public class ScheduleController {
         FindOneScheduleResponseDto findScheduleByHospital = scheduleService.findOneScheduleByHospital(hospitalId, scheduleId);
         return ResponseEntity.ok().body(findScheduleByHospital);
     }
+
+    // 특정 병원의 운영시간대별 진료 가능 환자수 정보를 담은 모든 행을 반환한다.
+    @GetMapping// default: /api/schedule/{hospitalId}
+    public ResponseEntity<?> findAllSchedules(@PathVariable UUID hospitalId) {
+        List<FindOneScheduleResponseDto> schedules = scheduleService.findAllSchedules(hospitalId);
+        return ResponseEntity.ok().body(schedules);
+    }
+
 }
