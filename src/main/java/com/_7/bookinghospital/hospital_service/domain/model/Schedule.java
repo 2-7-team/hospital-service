@@ -44,4 +44,13 @@ public class Schedule extends BaseEntity {
     public FindOneScheduleResponseDto toFindOneScheduleResponseDto() {
         return new FindOneScheduleResponseDto (this.hospital.getName(), this.time, this.capacity);
     }
+
+    // 운영시간대별 진료 가능 환자수 변경에 사용될 메서드
+    public void updateCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public void changeHospital(Hospital hospital) {
+        this.hospital = hospital;
+    }
 }
