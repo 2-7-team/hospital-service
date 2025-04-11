@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class ScheduleService {
     private final HospitalRepository hospitalRepository;
     private final ScheduleRepository scheduleRepository;
+    private Long userId = 1L; // 임의의 유저 정보
 
     public CreateScheduleResponseDto create(UUID hospitalId, @Valid CreateScheduleRequestDto dto) {
         log.info("schedule service");
@@ -113,5 +114,65 @@ public class ScheduleService {
                 .stream()
                 .map(Schedule::toFindOneScheduleResponseDto)
                 .toList();
+    }
+
+    public FindOneScheduleResponseDto updateSchedule(UUID hospitalId, UUID scheduleId, Integer capacity) {
+        // 1. 전달받은 hospitalId 존재 여부 확인
+        if(!hospitalRepository.existsHospital(hospitalId)) {
+            throw new NotFoundException("병원이 존재하지 않습니다.");
+        }
+
+        // 2. 병원 존재 but 해당 병원이 update 할 schedule id 가 없을 때,
+        Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
+        Schedule existingScheduleInfo = findOneHospital
+                .getSchedules() // List<Schedule>
+                .stream()
+                .filter(schedule -> schedule.getId().equals(scheduleId))
+                .findFirst() // Optional<Schedule>
+                .orElseThrow(() -> new NotFoundException("업데이트할 병원 스케쥴 정보가 존재하지 않습니다."));
+
+        // 3. 클라이언트로부터 전달받은 데이터인 진료 가능 환자수(좌석수) 가 null 이거나 0 보다 작을 경우 예외를 발생시킨다.
+        if(capacity == null || capacity <= 0) {
+            throw new IllegalArgumentException("진료 가능 환자수(좌석수)를 다시 확인해주세요.");
+        }
+
+        if(existingScheduleInfo.getCapacity().equals(capacity)) {
+            throw new RuntimeException("변경하려는 진료 가능 환자 수(좌석수)가 기존과 동일하여 업데이트된 사항이 없습니다.");
+        }
+
+        existingScheduleInfo.updateCapacity(capacity);
+        findOneHospital.add(existingScheduleInfo);
+        Hospital updated = hospitalRepository.save(findOneHospital);
+
+        // (의문) hospitalRepository 를 통해서 schedule 테이블에 접근하고, crud 를 진행해야 하는가?
+        // (문제) 그렇다면 아래와 같이 코드가 길어질 수 밖에 없다.
+        // (대안) queryDsl 이나 메서드 추출을 통해 반복 로직을 없애야 할 듯??
+        Schedule updatedSchedule = updated.getSchedules()
+                .stream()
+                .filter(schedule -> schedule.getId().equals(scheduleId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("병원 일정을 다시 확인해주세요."));
+
+        return updatedSchedule.toFindOneScheduleResponseDto();
+    }
+
+    public void delete(UUID hospitalId, UUID scheduleId) {
+        Hospital findOneHotel = hospitalRepository.findOneHospital(hospitalId);
+
+        // 해당 병원에 등록된 일정이 하나도 없을 때
+        if(findOneHotel.getSchedules().isEmpty()) {
+            throw new NotFoundException(findOneHotel.getName()+ "에 등록된 일정이 없습니다.");
+        }
+
+        // 해당 병원에 전달한 scheduleId 와 일치하는 일정이 없을 때 예외 발생
+        Schedule findSchedule = findOneHotel.getSchedules()
+                .stream()
+                .filter(schedule -> schedule.getId().equals(scheduleId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("요청하신 일정 정보가 존재하지 않아 삭제가 불가합니다."));
+
+        findSchedule.delete(userId);
+        findOneHotel.add(findSchedule);
+        Hospital updated = hospitalRepository.save(findOneHotel);
     }
 }
