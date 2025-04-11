@@ -39,7 +39,7 @@ public class Hospital extends BaseEntity {
     private LocalTime closeHour; // 병원 영업 마감 시각
 
     // cascade = CascadeType.REMOVE: 병원이 삭제 되면 병원과 관련된 운영 시간대별 환자 진료 가능 데이터(row)들도 모두 사라지도록 설정
-    @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     List<Schedule> schedules = new ArrayList<>();
 
     @Builder(builderMethodName = "createHospitalBuilder")
@@ -91,8 +91,7 @@ public class Hospital extends BaseEntity {
     }
 
     public void add(Schedule schedule) {
-        // schedule.setHospital(this);
-        log.info(schedule.toString());
+        schedule.changeHospital(this);
         this.schedules.add(schedule);
     }
 }
