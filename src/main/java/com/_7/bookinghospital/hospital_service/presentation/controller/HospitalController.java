@@ -1,10 +1,10 @@
 package com._7.bookinghospital.hospital_service.presentation.controller;
 
 import com._7.bookinghospital.hospital_service.application.service.HospitalService;
-import com._7.bookinghospital.hospital_service.application.dto.request.CreateHospitalRequestDto;
-import com._7.bookinghospital.hospital_service.application.dto.request.UpdateHospitalRequestDto;
-import com._7.bookinghospital.hospital_service.application.dto.response.FindOneHospitalResponseDto;
-import com._7.bookinghospital.hospital_service.application.dto.response.UpdateHospitalResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

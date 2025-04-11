@@ -2,6 +2,7 @@ package com._7.bookinghospital.hospital_service.domain.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalTime;
@@ -11,6 +12,7 @@ import java.util.*;
 @Getter
 @NoArgsConstructor
 @Table(name = "p_hospital")
+@Slf4j
 public class Hospital extends BaseEntity {
     @Id
     // @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,7 +40,7 @@ public class Hospital extends BaseEntity {
 
     // cascade = CascadeType.REMOVE: 병원이 삭제 되면 병원과 관련된 운영 시간대별 환자 진료 가능 데이터(row)들도 모두 사라지도록 설정
     @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
-    List<PatientCapacityPerHour> hoursList = new ArrayList<>();
+    List<Schedule> schedules = new ArrayList<>();
 
     @Builder(builderMethodName = "createHospitalBuilder")
     public Hospital(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
@@ -86,5 +88,11 @@ public class Hospital extends BaseEntity {
         }
 
         return this;
+    }
+
+    public void add(Schedule schedule) {
+        // schedule.setHospital(this);
+        log.info(schedule.toString());
+        this.schedules.add(schedule);
     }
 }

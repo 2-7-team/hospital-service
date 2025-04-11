@@ -1,9 +1,9 @@
 package com._7.bookinghospital.hospital_service.application.service;
 
-import com._7.bookinghospital.hospital_service.application.dto.request.CreateHospitalRequestDto;
-import com._7.bookinghospital.hospital_service.application.dto.request.UpdateHospitalRequestDto;
-import com._7.bookinghospital.hospital_service.application.dto.response.FindOneHospitalResponseDto;
-import com._7.bookinghospital.hospital_service.application.dto.response.UpdateHospitalResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
 import jakarta.validation.Valid;
