@@ -5,16 +5,23 @@ import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHo
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.View;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.List;
-import java.util.UUID;
+import java.net.URI;
+import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,18 +29,32 @@ import java.util.UUID;
 @Slf4j
 public class HospitalController {
     private final HospitalService hospitalService;
+    private final View error;
 
     // 병원 등록하기, 권한: 병원 관계자
     @PostMapping
-    public ResponseEntity<String> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                   BindingResult bindingResult) {
-        log.info("병원등록 - create(), dto: {}", dto.toString());
+    public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
+                                    BindingResult result) {
+        log.info("병원등록 - create(), dto: {}", dto);
+
         // 1. (예정) dto 유효성 검증: 공통 모듈에 존재하는 전역 예외에 dto 유효성 검증시 발생 예외를 처리하는 핸들러 및 예외가 있는가
+        Optional<Map<String, String>> dtoValid = dto.isValid(result);
+        if(dtoValid.isPresent()) {
+            return ResponseEntity.badRequest().body(dtoValid.get());
+        }
+
         // 2. (완료) dto 저장
-        String savedHospitalName = hospitalService.create(dto);
+        UUID hospitalId = hospitalService.create(dto);
+
+        URI uri = UriComponentsBuilder.fromUriString("/{hospitalId}")
+                .buildAndExpand(hospitalId)
+                .toUri();
+
         // 3. (완료) 리소스가 성공적으로 생성되어서 201과 생성된 병원 정보(리소스 가공)를 반환하기
-        // 4. (예정) 추후 생성된 병원 정보를 볼 수 있는(조회하는) uri 전달하기.
-        return new ResponseEntity<String>(savedHospitalName, HttpStatus.CREATED);
+        // 4. (완료) 생성된 병원 정보를 조회하는 uri 클라이언트에 전달.
+        // header 에 key 가 Location, value 가 저장된 병원의 id 값을 담아서 클라이언트에 반환됨 → 포스트 맨으로 확인 완료
+        // 5. (예정) 테스트 코드 작성
+        return ResponseEntity.created(uri).build();
     }
 
     // 병원 정보 단건 조회 - 권한: ALL

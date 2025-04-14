@@ -21,7 +21,8 @@ public class HospitalService {
     private final HospitalRepository hospitalRepository;
 
     @Transactional
-    public String create(@Valid CreateHospitalRequestDto dto) {
+    public UUID create(@Valid CreateHospitalRequestDto dto) {
+        /*
         Hospital hospital = Hospital.createHospitalBuilder()
                 .name(dto.getName())
                 .phone(dto.getPhone())
@@ -30,10 +31,16 @@ public class HospitalService {
                 .openHour(dto.getOpenHour())
                 .closeHour(dto.getCloseHour())
                 .build();
+        */
+
+        // 정적 팩토리 메서드 패턴 이용
+        // (문제) 정적 팩토리 메서드 매개변수로 전달하는 값들을 더 간단히 작성할 수 있는 방법이 있는지
+        //  → 여기서 계층간 dto 를 따로 작성할 필요성을 느낌
+        Hospital hospital = Hospital.of(dto.getName(), dto.getPhone(), dto.getDescription(), dto.getAddress(), dto.getOpenHour(), dto.getCloseHour());
 
         Hospital saved = hospitalRepository.save(hospital);
 
-        return saved.getName();
+        return saved.getId();
     }
 
     // 병원 단건 조회
