@@ -2,7 +2,8 @@ package com._7.bookinghospital.hospital_service.domain.model;
 
 import bookinghospital.common_module.BaseEntity;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.UuidGenerator;
 

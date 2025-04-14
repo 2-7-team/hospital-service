@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -23,10 +24,8 @@ public class HospitalRepositoryImpl implements HospitalRepository {
     }
 
     @Override
-    public Hospital findOneHospital(UUID id) {
-        return hospitalJpaRepository
-                .findById(id)
-                .orElseThrow(() -> new NotFoundException("조회하신 병원 정보가 존재하지 않습니다."));
+    public Optional<Hospital> findByHospitalId(UUID id) {
+        return hospitalJpaRepository.findById(id);
     }
 
     @Override

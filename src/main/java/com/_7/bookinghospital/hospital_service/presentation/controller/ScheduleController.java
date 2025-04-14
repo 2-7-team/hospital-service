@@ -56,6 +56,7 @@ public class ScheduleController {
                                             @PathVariable UUID scheduleId,
                                             @RequestBody Map<String, Integer> request) {
         // 필드 한 개만 전달받기 때문에 Map 타입을 사용함.
+        log.info("request.get('capacity'): {}", request.get("capacity"));
         FindOneScheduleResponseDto updated = scheduleService.updateSchedule(hospitalId, scheduleId, request.get("capacity"));
         return ResponseEntity.ok().body(updated);
     }

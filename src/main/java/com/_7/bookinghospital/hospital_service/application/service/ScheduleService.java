@@ -1,5 +1,6 @@
 package com._7.bookinghospital.hospital_service.application.service;
 
+import com._7.bookinghospital.hospital_service.application.exception.NotExistHospitalException;
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import com._7.bookinghospital.hospital_service.domain.model.Schedule;
 import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
@@ -16,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,15 +29,8 @@ public class ScheduleService {
 
     public CreateScheduleResponseDto create(UUID hospitalId, @Valid CreateScheduleRequestDto dto) {
         log.info("schedule service");
-        // 1. 전달받은 hospitalId 존재 여부 확인
-        // (예정) hospitalId 와 예외 메시지를 전달받는 메서드 작성, schedule 생성 및 조회 메서드에 적용
-        if(!hospitalRepository.existsHospital(hospitalId)) {
-            log.info("hospital does not exist");
-         throw new NotFoundException("병원을 먼저 등록해주세요.");
-        }
-
-        // 2. 병원 객체 전달 받고,
-        Hospital findHospital = hospitalRepository.findOneHospital(hospitalId);
+        // 1. 전달받은 hospitalId 존재 여부 && 소프트 삭제 여부 확인
+        Hospital findHospital = checkDbAndDeleteHospital(hospitalId);
 
         // 3. (예정) 중복 검사: 전달받은 시간대가 등록되어 있는지 확인
 
@@ -66,18 +59,15 @@ public class ScheduleService {
 
     public FindOneScheduleResponseDto findOneScheduleByHospital(UUID hospitalId, UUID scheduleId) {
         log.info("schedule service - hospitalId: {}, scheduleId: {}", hospitalId, scheduleId);
-        // 1. 전달받은 hospitalId 존재 여부 확인
-        if(!hospitalRepository.existsHospital(hospitalId)) {
-            throw new NotFoundException("병원이 존재하지 않습니다.");
-        }
+        // 1. 전달받은 hospitalId 존재 여부 && 소프트 삭제 여부 확인
+        Hospital findHospital = checkDbAndDeleteHospital(hospitalId);
 
         // 2. 병원 존재 but 해당 병원이 schedule 이 아예 없을 경우,
         // 그리고 일정들은 존재하는데, 전달받은 schedule id 에 기반한 일정이 없는 경우 예외 발생시키기
-        Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
 
         // 2-1. 애그리거트 루트인 병원 도메인을 통해 해당 병원의 스케쥴 정보를 모두 가져와 schedule id 가 존재하는지 확인
         // 일차적으로 해당 병원이 등록한 스케쥴 정보가 있는지 확인
-        List<Schedule> schedules = findOneHospital.getSchedules();
+        List<Schedule> schedules = findHospital.getSchedules();
 
         if(schedules.isEmpty()) {
             throw new NotFoundException("시간대별 운영 정보가 존재하지 않습니다.");
@@ -93,18 +83,15 @@ public class ScheduleService {
                 .orElseThrow(() -> new NotFoundException("조회하신 스케쥴은 존재하지 않습니다."));
     }
 
+    // 특정 병원의 모든 일정 조회
     public List<FindOneScheduleResponseDto> findAllSchedules(UUID hospitalId) {
-        // (예정) findOneScheduleByHospital() 메서드와 중복되는 로직 추출
-        // 1. 전달받은 hospitalId 존재 여부 확인
-        if(!hospitalRepository.existsHospital(hospitalId)) {
-            throw new NotFoundException("병원이 존재하지 않습니다.");
-        }
+        // 1. 전달받은 hospitalId 존재 여부 && 소프트 삭제 여부 확인
+        Hospital findHospital = checkDbAndDeleteHospital(hospitalId);
 
         // 2. 병원 존재 but 해당 병원이 schedule 이 아예 없을 경우
         // 2-1. 애그리거트 루트인 병원 도메인을 통해 해당 병원의 스케쥴 정보를 모두 가져오기
         // 일차적으로 해당 병원이 등록한 스케쥴 정보가 있는지 확인
-        Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
-        List<Schedule> schedules = findOneHospital.getSchedules();
+        List<Schedule> schedules = findHospital.getSchedules();
 
         if(schedules.isEmpty()) {
             throw new NotFoundException("시간대별 운영 정보가 존재하지 않습니다.");
@@ -116,15 +103,15 @@ public class ScheduleService {
                 .toList();
     }
 
+    // 특정 병원의 특정 일정 업데이트 하기
     public FindOneScheduleResponseDto updateSchedule(UUID hospitalId, UUID scheduleId, Integer capacity) {
-        // 1. 전달받은 hospitalId 존재 여부 확인
-        if(!hospitalRepository.existsHospital(hospitalId)) {
-            throw new NotFoundException("병원이 존재하지 않습니다.");
-        }
+        // 1. 전달받은 hospitalId 존재 여부 && 소프트 삭제 여부 확인
+        Hospital findHospital = checkDbAndDeleteHospital(hospitalId);
+
+        log.info("삭제 여부: {}", findHospital.isDeleted());
 
         // 2. 병원 존재 but 해당 병원이 update 할 schedule id 가 없을 때,
-        Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
-        Schedule existingScheduleInfo = findOneHospital
+        Schedule existingScheduleInfo = findHospital
                 .getSchedules() // List<Schedule>
                 .stream()
                 .filter(schedule -> schedule.getId().equals(scheduleId))
@@ -141,8 +128,8 @@ public class ScheduleService {
         }
 
         existingScheduleInfo.updateCapacity(capacity);
-        findOneHospital.add(existingScheduleInfo);
-        Hospital updated = hospitalRepository.save(findOneHospital);
+        findHospital.add(existingScheduleInfo);
+        Hospital updated = hospitalRepository.save(findHospital);
 
         // (의문) hospitalRepository 를 통해서 schedule 테이블에 접근하고, crud 를 진행해야 하는가?
         // (문제) 그렇다면 아래와 같이 코드가 길어질 수 밖에 없다.
@@ -156,23 +143,38 @@ public class ScheduleService {
         return updatedSchedule.toFindOneScheduleResponseDto();
     }
 
+    // 특정 병원의 특정 일정 (소프트) 삭제하기
     public void delete(UUID hospitalId, UUID scheduleId) {
-        Hospital findOneHotel = hospitalRepository.findOneHospital(hospitalId);
+        // 1. 전달받은 hospitalId 존재 여부 && 소프트 삭제 여부 확인
+        Hospital findHospital = checkDbAndDeleteHospital(hospitalId);
 
         // 해당 병원에 등록된 일정이 하나도 없을 때
-        if(findOneHotel.getSchedules().isEmpty()) {
-            throw new NotFoundException(findOneHotel.getName()+ "에 등록된 일정이 없습니다.");
+        if(findHospital.getSchedules().isEmpty()) {
+            throw new NotFoundException(findHospital.getName()+ "에 등록된 일정이 없습니다.");
         }
 
         // 해당 병원에 전달한 scheduleId 와 일치하는 일정이 없을 때 예외 발생
-        Schedule findSchedule = findOneHotel.getSchedules()
+        Schedule findSchedule = findHospital.getSchedules()
                 .stream()
                 .filter(schedule -> schedule.getId().equals(scheduleId))
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("요청하신 일정 정보가 존재하지 않아 삭제가 불가합니다."));
 
         findSchedule.delete(userId);
-        findOneHotel.add(findSchedule);
-        Hospital updated = hospitalRepository.save(findOneHotel);
+        findHospital.add(findSchedule);
+        Hospital updated = hospitalRepository.save(findHospital);
+    }
+
+    // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
+    private Hospital checkDbAndDeleteHospital(UUID hospitalId) {
+        // db 에 병원 정보 존재 여부
+        Hospital findHospital = hospitalRepository.findByHospitalId(hospitalId)
+                .orElseThrow(() -> new NotExistHospitalException("조회하신 병원은 존재하지 않습니다."));
+
+        // 병원이 소프트 삭제 됐는지 확인
+        if(findHospital.isDeleted()) {
+            throw new NotExistHospitalException("조회하신 병원은 존재하지 않습니다.");
+        }
+        return findHospital;
     }
 }

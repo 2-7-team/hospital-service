@@ -1,18 +1,21 @@
 package com._7.bookinghospital.hospital_service.application.service;
 
+import com._7.bookinghospital.hospital_service.application.exception.NotExistHospitalException;
+import com._7.bookinghospital.hospital_service.domain.model.Hospital;
+import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
-import com._7.bookinghospital.hospital_service.domain.model.Hospital;
-import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
 import jakarta.validation.Valid;
-import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,9 +48,22 @@ public class HospitalService {
 
     // 병원 단건 조회
     public FindOneHospitalResponseDto findOneHospital(UUID hospitalId) {
-        // (예정) delete 필드의 값이 false 인 경우 조회가 되지 않도록 하기
-        Hospital findHospital = hospitalRepository.findOneHospital(hospitalId);
+        // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
+        Hospital findHospital = checkDbAndDelete(hospitalId);
         return new FindOneHospitalResponseDto(findHospital);
+    }
+
+    // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
+    private Hospital checkDbAndDelete(UUID hospitalId) {
+        // db 에 병원 정보 존재 여부
+        Hospital findHospital = hospitalRepository.findByHospitalId(hospitalId)
+                .orElseThrow(() -> new NotExistHospitalException("조회하신 병원은 존재하지 않습니다."));
+
+        // 병원이 소프트 삭제 됐는지 확인
+        if(findHospital.isDeleted()) {
+            throw new NotExistHospitalException("조회하신 병원은 존재하지 않습니다.");
+        }
+        return findHospital;
     }
 
     // 병원 목록 조회
@@ -62,7 +78,7 @@ public class HospitalService {
     @Transactional
     public UpdateHospitalResponseDto updateHospitalInfo(UUID hospitalId, UpdateHospitalRequestDto updateHospitalInfo) {
         // 1. 업데이트할 병원 정보 존재하는지 고유 식별자(UUID hospitalId) 기반으로 병원 정보 확인하기
-        Hospital findOneHospital = hospitalRepository.findOneHospital(hospitalId);
+        Hospital findOneHospital = checkDbAndDelete(hospitalId);
 
         // hospitalId 기반 병원 정보 존재시
         // 2. 병원 정보 수정 요청 값 유효성 검증하기
@@ -90,11 +106,7 @@ public class HospitalService {
         // (삭제 예정) 임의 사용자 정보
         Long userId = 100L;
 
-        if(!hospitalRepository.existsHospital(hospitalId)) {
-         throw new NotFoundException("삭제하려는 병원이 존재하지 않습니다.");
-        }
-
-        Hospital deleteHospital = hospitalRepository.findOneHospital(hospitalId);
+        Hospital deleteHospital = checkDbAndDelete(hospitalId);
 
         deleteHospital.delete(userId);
 

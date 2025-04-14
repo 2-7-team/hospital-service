@@ -5,23 +5,20 @@ import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHo
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
-import org.springframework.http.HttpRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.View;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -52,13 +49,13 @@ public class HospitalController {
 
         // 3. (완료) 리소스가 성공적으로 생성되어서 201과 생성된 병원 정보(리소스 가공)를 반환하기
         // 4. (완료) 생성된 병원 정보를 조회하는 uri 클라이언트에 전달.
-        // header 에 key 가 Location, value 가 저장된 병원의 id 값을 담아서 클라이언트에 반환됨 → 포스트 맨으로 확인 완료
+        //     : header 에 key 가 Location, value 가 저장된 병원의 id 값을 담아서 클라이언트에 반환됨 → 포스트 맨으로 확인 완료
         // 5. (예정) 테스트 코드 작성
         return ResponseEntity.created(uri).build();
     }
 
     // 병원 정보 단건 조회 - 권한: ALL
-    @GetMapping("/{hospitalId}") // (의문) @Pathvariable 로 받는 매개변수명이 카멜케이스여도 되는가?
+    @GetMapping("/{hospitalId}")
     public ResponseEntity<FindOneHospitalResponseDto> findOneHospital(@PathVariable UUID hospitalId) {
         FindOneHospitalResponseDto findHospital = hospitalService.findOneHospital(hospitalId);
         // 200 HttpStatusCode 와 함께 찾은 리소스를 반환함.
@@ -73,7 +70,7 @@ public class HospitalController {
     }
 
     // 병원 정보 수정하기 - 권한: 병원 관계자(해당 병원을 등록한 사람)
-    @PatchMapping("/{hospitalId}") // (의문) @Pathvariable 로 받는 매개변수명이 카멜케이스여도 되는가?
+    @PatchMapping("/{hospitalId}")
     public ResponseEntity<UpdateHospitalResponseDto> updateHospitalInfo(@PathVariable UUID hospitalId,
                                                                         @RequestBody UpdateHospitalRequestDto updateDto) {
         UpdateHospitalResponseDto updateHospitalResponseDto = hospitalService.updateHospitalInfo(hospitalId, updateDto);
