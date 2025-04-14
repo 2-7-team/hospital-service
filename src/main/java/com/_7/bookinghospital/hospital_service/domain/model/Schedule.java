@@ -1,5 +1,6 @@
 package com._7.bookinghospital.hospital_service.domain.model;
 
+import bookinghospital.common_module.BaseEntity; // common_module 라이브러리에서 가져옴.
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneScheduleResponseDto;
 import jakarta.persistence.*;
 import lombok.Builder;
