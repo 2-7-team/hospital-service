@@ -4,8 +4,14 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+# Spring 설정 파일 무시
 *.yaml
 *.yml
+*.properties
+
+# Gradle 설정 무시
+gradle.properties
 
 ### STS ###
 .apt_generated
