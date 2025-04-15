@@ -13,7 +13,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.View;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
@@ -28,16 +27,17 @@ import java.util.UUID;
 @Slf4j
 public class HospitalController {
     private final HospitalService hospitalService;
-    private final View error;
 
     // 병원 등록하기, 권한: 병원 관계자
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                    BindingResult result) {
+                                    BindingResult result
+                                    /*@UserInfo UserDetails userInfo*/) {
         log.info("병원등록 - create(), dto: {}", dto);
+        /*log.info("userInfo: {}", userInfo.getUserId());*/
 
-        // 1. (예정) dto 유효성 검증: 공통 모듈에 존재하는 전역 예외에 dto 유효성 검증시 발생 예외를 처리하는 핸들러 및 예외가 있는가
         Optional<Map<String, String>> dtoValid = dto.isValid(result);
+
         if(dtoValid.isPresent()) {
             return ResponseEntity.badRequest().body(dtoValid.get());
         }
@@ -68,15 +68,11 @@ public class HospitalController {
     // 병원 목록 조회 - 권한: ALL
     @GetMapping // /api/hospitals?page=1&size=10&search=검색어
     public ResponseEntity<Page<FindOneHospitalResponseDto>> findAllHospitals(
-            @RequestParam(required = false, defaultValue = "0") int page, // 클라이언트가 선택한 페이지 번호
-            @RequestParam(required = false, defaultValue = "10") int size// 한 페이지에 보여줄 병원 정보 수, 10개가 기본 값
-
-            // search 라는 key 에 value 가 담겨 서버로 전달됨 ex. { "key" : "null" }
-            // @RequestParam(required = false, defaultValue = "null") String search
-            // @RequestParam String sortBy, 정렬 정보 생략 가능
-            // @RequestParam boolean direction // 오름차순, 내림차순
+            // 클라이언트가 선택한 페이지 번호
+            @RequestParam(required = false, defaultValue = "0") int page,
+            // 한 페이지에 보여줄 병원 정보 수, 10개가 기본 값
+            @RequestParam(required = false, defaultValue = "10") int size
     ) {
-        // log.info("page: {}, size: {}, search: {}", page, size, search);
         log.info("page: {}, size: {}", page, size);
         Page<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals(page, size);
         return ResponseEntity.ok().body(allHospitals);
@@ -102,9 +98,8 @@ public class HospitalController {
         return ResponseEntity.noContent().build();
     }
 
-    // (예정) 리뷰 서비스에서 병원 존재 여부 확인하는 internal api 작성
-    // - 병원이 존재하는지 확인할 것: 존재시 병원 id 값 전달, 존재하지 않을시 에러메시지 전달
-    // httpStatus: 200, {hospitalId : 111111}
+    // (완료) 리뷰 서비스에서 병원 존재 여부 확인하는 internal api 작성
+    // (예정) 예외 처리
     // httpStatus: 404, {error: "존재하지 않습니다."}
     @GetMapping("/internal/{hospitalId}")
     public ResponseEntity<Map<String, UUID>> checkHospital(@PathVariable UUID hospitalId,
@@ -119,7 +114,6 @@ public class HospitalController {
         response.put("hospitalId", uuid);
         return ResponseEntity.ok().body(response);
     }
-
 
     // (예정) 등록된 병원 정보의 전체 스케쥴
 

@@ -2,8 +2,10 @@ package com._7.bookinghospital.hospital_service.domain.model;
 
 import bookinghospital.common_module.BaseEntity;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -14,6 +16,7 @@ import java.util.*;
 @Getter
 @Table(name = "p_hospital")
 @Slf4j
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Hospital extends BaseEntity {
     @Id
     // @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,10 +50,6 @@ public class Hospital extends BaseEntity {
     public static Hospital of(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
         return new Hospital(name, address, phone, description, openHour, closeHour);
     }
-
-    // Hospital 기본 생성자의 접근제한자를 public 으로 했다가 하기와 같은 문제로 private 으로 바꿈.
-    // (문제) 클래스 'Hospital' 에는 [public, protected] no-arg 생성자가 포함되어야 합니다.
-    public Hospital(){} // 기본 생성자
 
     @Builder
     private Hospital(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
