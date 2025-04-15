@@ -9,10 +9,12 @@ import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOne
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -53,26 +55,14 @@ public class HospitalService {
         return new FindOneHospitalResponseDto(findHospital);
     }
 
-    // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
-    private Hospital checkDbAndDelete(UUID hospitalId) {
-        // db 에 병원 정보 존재 여부
-        Hospital findHospital = hospitalRepository.findByHospitalId(hospitalId)
-                .orElseThrow(() -> new NotExistHospitalException("조회하신 병원은 존재하지 않습니다."));
-
-        // 병원이 소프트 삭제 됐는지 확인
-        if(findHospital.isDeleted()) {
-            throw new NotExistHospitalException("조회하신 병원은 존재하지 않습니다.");
-        }
-        return findHospital;
-    }
-
     // 병원 목록 조회
-    public List<FindOneHospitalResponseDto> findAllHospitals() {
-        List<Hospital> hospitalList = hospitalRepository.findAllHospitals();
-        return hospitalList
-                .stream()
-                .map(FindOneHospitalResponseDto::new) // Stream<FindOneHospitalResponseDto>
-                .toList();
+    public Page<FindOneHospitalResponseDto> findAllHospitals(int page, int size) {
+        // 페이지네이션
+        int pageNo = (page != 0)? (page - 1): page;
+        Pageable pageable = PageRequest.of(pageNo, size);
+
+        Page<Hospital> hospitalList = hospitalRepository.findAllHospitals(pageable);
+        return hospitalList.map(FindOneHospitalResponseDto::new);
     }
 
     @Transactional
@@ -82,7 +72,6 @@ public class HospitalService {
 
         // hospitalId 기반 병원 정보 존재시
         // 2. 병원 정보 수정 요청 값 유효성 검증하기
-        // (의문) value 가 제네릭 타입인데 제네릭 타입에 맞게 형변환 되는 것인가?
         Map<String, Object> extractUpdateFields = updateHospitalInfo.extractUpdateFields();
 
         // 2-1. 업데이트 요청 데이터가 하나도 전달되지 않았다면 예외 발생 시키기
@@ -90,6 +79,7 @@ public class HospitalService {
             throw new IllegalArgumentException("수정할 데이터가 없습니다. 수정할 항목을 다시 확인해주세요.");
         }
 
+        // key-value (entry) Set 에 담기
         Set<Map.Entry<String, Object>> entries = extractUpdateFields.entrySet();
 
         // 3. 클라이언트가 수정 요청한 병원 정보 수정하기
@@ -111,5 +101,18 @@ public class HospitalService {
         deleteHospital.delete(userId);
 
         hospitalRepository.save(deleteHospital);
+    }
+
+    // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
+    private Hospital checkDbAndDelete(UUID hospitalId) {
+        // db 에 병원 정보 존재 여부
+        Hospital findHospital = hospitalRepository.findByHospitalId(hospitalId)
+                .orElseThrow(() -> new NotExistHospitalException("조회하신 병원은 존재하지 않습니다."));
+
+        // 병원이 소프트 삭제 됐는지 확인
+        if(findHospital.isDeleted()) {
+            throw new NotExistHospitalException("조회하신 병원은 존재하지 않습니다.");
+        }
+        return findHospital;
     }
 }

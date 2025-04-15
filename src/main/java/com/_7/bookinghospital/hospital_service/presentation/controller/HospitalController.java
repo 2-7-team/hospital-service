@@ -8,6 +8,7 @@ import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateH
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +16,6 @@ import org.springframework.web.servlet.View;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +46,7 @@ public class HospitalController {
         URI uri = UriComponentsBuilder.fromUriString("/{hospitalId}")
                 .buildAndExpand(hospitalId)
                 .toUri();
+        log.info("uri: {}", uri);
 
         // 3. (완료) 리소스가 성공적으로 생성되어서 201과 생성된 병원 정보(리소스 가공)를 반환하기
         // 4. (완료) 생성된 병원 정보를 조회하는 uri 클라이언트에 전달.
@@ -63,9 +64,19 @@ public class HospitalController {
     }
 
     // 병원 목록 조회 - 권한: ALL
-    @GetMapping
-    public ResponseEntity<List<FindOneHospitalResponseDto>> findAllHospitals() {
-        List<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals();
+    @GetMapping // /api/hospitals?page=1&size=10&search=검색어
+    public ResponseEntity<Page<FindOneHospitalResponseDto>> findAllHospitals(
+            @RequestParam(required = false, defaultValue = "0") int page, // 클라이언트가 선택한 페이지 번호
+            @RequestParam(required = false, defaultValue = "10") int size// 한 페이지에 보여줄 병원 정보 수, 10개가 기본 값
+
+            // search 라는 key 에 value 가 담겨 서버로 전달됨 ex. { "key" : "null" }
+            // @RequestParam(required = false, defaultValue = "null") String search
+            // @RequestParam String sortBy, 정렬 정보 생략 가능
+            // @RequestParam boolean direction // 오름차순, 내림차순
+    ) {
+        // log.info("page: {}, size: {}, search: {}", page, size, search);
+        log.info("page: {}, size: {}", page, size);
+        Page<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals(page, size);
         return ResponseEntity.ok().body(allHospitals);
     }
 
