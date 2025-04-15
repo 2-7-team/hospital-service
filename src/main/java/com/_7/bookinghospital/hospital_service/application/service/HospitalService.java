@@ -115,4 +115,9 @@ public class HospitalService {
         }
         return findHospital;
     }
+
+    public UUID checkHospital(UUID hospitalId) {
+        Hospital hospital = checkDbAndDelete(hospitalId);
+        return hospital.getId();
+    }
 }

@@ -41,7 +41,7 @@ dependencies {
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 	implementation 'org.springframework.boot:spring-boot-starter-logging'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'bookinghospital:common-module:0.1.1-SNAPSHOT'
+	implementation 'bookinghospital:common-module:0.2.3-SNAPSHOT'
 
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'

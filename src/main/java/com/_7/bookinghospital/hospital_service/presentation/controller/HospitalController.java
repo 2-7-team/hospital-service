@@ -5,6 +5,7 @@ import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHo
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.web.servlet.View;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,9 +96,31 @@ public class HospitalController {
     // 권한: MASTER, 병원 관계자(해당 병원을 등록한 사람)
     // (문제) updatedBy 에 userId 가 삽입 안됨.
     @DeleteMapping("/{hospitalId}")
-    public ResponseEntity<?> delete(@PathVariable UUID hospitalId) {
+    public ResponseEntity<Void> delete(@PathVariable UUID hospitalId) {
         hospitalService.delete(hospitalId);
         // 삭제 요청이 성공적으로 이루어졌을 때 HttpStatus.NO_CONTENT(204) 를 반환함.
         return ResponseEntity.noContent().build();
     }
+
+    // (예정) 리뷰 서비스에서 병원 존재 여부 확인하는 internal api 작성
+    // - 병원이 존재하는지 확인할 것: 존재시 병원 id 값 전달, 존재하지 않을시 에러메시지 전달
+    // httpStatus: 200, {hospitalId : 111111}
+    // httpStatus: 404, {error: "존재하지 않습니다."}
+    @GetMapping("/internal/{hospitalId}")
+    public ResponseEntity<Map<String, UUID>> checkHospital(@PathVariable UUID hospitalId,
+                                                             HttpServletRequest request) {
+        Map<String, UUID> response = new HashMap<>();
+
+        String uri = request.getRequestURI();
+        log.info("요청 uri: {}", uri);
+
+        UUID uuid = hospitalService.checkHospital(hospitalId);
+
+        response.put("hospitalId", uuid);
+        return ResponseEntity.ok().body(response);
+    }
+
+
+    // (예정) 등록된 병원 정보의 전체 스케쥴
+
 }
