@@ -1,7 +1,11 @@
 package com._7.bookinghospital.hospital_service.domain.model;
 
+import bookinghospital.common_module.BaseEntity;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -10,9 +14,9 @@ import java.util.*;
 
 @Entity
 @Getter
-@NoArgsConstructor
 @Table(name = "p_hospital")
 @Slf4j
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Hospital extends BaseEntity {
     @Id
     // @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,8 +46,13 @@ public class Hospital extends BaseEntity {
     @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     List<Schedule> schedules = new ArrayList<>();
 
-    @Builder(builderMethodName = "createHospitalBuilder")
-    public Hospital(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
+    // 정적 팩토리 메서드
+    public static Hospital create(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
+        return new Hospital(name, address, phone, description, openHour, closeHour);
+    }
+
+    @Builder
+    private Hospital(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
         this.name = name;
         this.address = address;
         this.phone = phone;

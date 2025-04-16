@@ -4,17 +4,20 @@ import com._7.bookinghospital.hospital_service.application.service.HospitalServi
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.response.HospitalWithSchedulesResponse;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.List;
-import java.util.UUID;
+import java.net.URI;
+import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,19 +28,35 @@ public class HospitalController {
 
     // 병원 등록하기, 권한: 병원 관계자
     @PostMapping
-    public ResponseEntity<String> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                   BindingResult bindingResult) {
-        log.info("병원등록 - create(), dto: {}", dto.toString());
-        // 1. (예정) dto 유효성 검증: 공통 모듈에 존재하는 전역 예외에 dto 유효성 검증시 발생 예외를 처리하는 핸들러 및 예외가 있는가
+    public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
+                                    BindingResult result
+                                    /*@UserInfo UserDetails userInfo*/) {
+        log.info("병원등록 - create(), dto: {}", dto);
+        /*log.info("userInfo: {}", userInfo.getUserId());*/
+
+        Optional<Map<String, String>> dtoValid = dto.isValid(result);
+
+        if(dtoValid.isPresent()) {
+            return ResponseEntity.badRequest().body(dtoValid.get());
+        }
+
         // 2. (완료) dto 저장
-        String savedHospitalName = hospitalService.create(dto);
+        UUID hospitalId = hospitalService.create(dto);
+
+        URI uri = UriComponentsBuilder.fromUriString("/{hospitalId}")
+                .buildAndExpand(hospitalId)
+                .toUri();
+        log.info("uri: {}", uri);
+
         // 3. (완료) 리소스가 성공적으로 생성되어서 201과 생성된 병원 정보(리소스 가공)를 반환하기
-        // 4. (예정) 추후 생성된 병원 정보를 볼 수 있는(조회하는) uri 전달하기.
-        return new ResponseEntity<String>(savedHospitalName, HttpStatus.CREATED);
+        // 4. (완료) 생성된 병원 정보를 조회하는 uri 클라이언트에 전달.
+        //     : header 에 key 가 Location, value 가 저장된 병원의 id 값을 담아서 클라이언트에 반환됨 → 포스트 맨으로 확인 완료
+        // 5. (예정) 테스트 코드 작성
+        return ResponseEntity.created(uri).build();
     }
 
     // 병원 정보 단건 조회 - 권한: ALL
-    @GetMapping("/{hospitalId}") // (의문) @Pathvariable 로 받는 매개변수명이 카멜케이스여도 되는가?
+    @GetMapping("/{hospitalId}")
     public ResponseEntity<FindOneHospitalResponseDto> findOneHospital(@PathVariable UUID hospitalId) {
         FindOneHospitalResponseDto findHospital = hospitalService.findOneHospital(hospitalId);
         // 200 HttpStatusCode 와 함께 찾은 리소스를 반환함.
@@ -45,14 +64,20 @@ public class HospitalController {
     }
 
     // 병원 목록 조회 - 권한: ALL
-    @GetMapping
-    public ResponseEntity<List<FindOneHospitalResponseDto>> findAllHospitals() {
-        List<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals();
+    @GetMapping // /api/hospitals?page=1&size=10&search=검색어
+    public ResponseEntity<Page<FindOneHospitalResponseDto>> findAllHospitals(
+            // 클라이언트가 선택한 페이지 번호
+            @RequestParam(required = false, defaultValue = "0") int page,
+            // 한 페이지에 보여줄 병원 정보 수, 10개가 기본 값
+            @RequestParam(required = false, defaultValue = "10") int size
+    ) {
+        log.info("page: {}, size: {}", page, size);
+        Page<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals(page, size);
         return ResponseEntity.ok().body(allHospitals);
     }
 
     // 병원 정보 수정하기 - 권한: 병원 관계자(해당 병원을 등록한 사람)
-    @PatchMapping("/{hospitalId}") // (의문) @Pathvariable 로 받는 매개변수명이 카멜케이스여도 되는가?
+    @PatchMapping("/{hospitalId}")
     public ResponseEntity<UpdateHospitalResponseDto> updateHospitalInfo(@PathVariable UUID hospitalId,
                                                                         @RequestBody UpdateHospitalRequestDto updateDto) {
         UpdateHospitalResponseDto updateHospitalResponseDto = hospitalService.updateHospitalInfo(hospitalId, updateDto);
@@ -65,9 +90,39 @@ public class HospitalController {
     // 권한: MASTER, 병원 관계자(해당 병원을 등록한 사람)
     // (문제) updatedBy 에 userId 가 삽입 안됨.
     @DeleteMapping("/{hospitalId}")
-    public ResponseEntity<?> delete(@PathVariable UUID hospitalId) {
+    public ResponseEntity<Void> delete(@PathVariable UUID hospitalId) {
         hospitalService.delete(hospitalId);
         // 삭제 요청이 성공적으로 이루어졌을 때 HttpStatus.NO_CONTENT(204) 를 반환함.
         return ResponseEntity.noContent().build();
     }
+
+    // (완료) 리뷰 서비스에서 병원 존재 여부 확인하는 internal api 작성
+    // (예정) 예외 처리
+    // httpStatus: 404, {error: "존재하지 않습니다."}
+    @GetMapping("/internal/{hospitalId}")
+    public ResponseEntity<Map<String, UUID>> checkHospital(@PathVariable UUID hospitalId,
+                                                             HttpServletRequest request) {
+        Map<String, UUID> response = new HashMap<>();
+
+        String uri = request.getRequestURI();
+        log.info("요청 uri: {}", uri);
+
+        UUID uuid = hospitalService.checkHospital(hospitalId);
+
+        response.put("hospitalId", uuid);
+        return ResponseEntity.ok().body(response);
+    }
+
+    // (예정) 등록된 병원 정보의 전체 스케쥴
+    // 리뷰 서비스에서 요청할 모든 병원 정보와 각 병원이 등록한 모든 스케쥴
+    @GetMapping("/internal/all")
+    public ResponseEntity<List<HospitalWithSchedulesResponse>> findAllInfo(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        log.info("요청 uri: {}", uri );
+
+        List<HospitalWithSchedulesResponse> response = hospitalService.findAllInfo();
+
+        return ResponseEntity.ok().body(response);
+    }
+
 }

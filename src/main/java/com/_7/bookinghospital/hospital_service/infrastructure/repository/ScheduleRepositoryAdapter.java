@@ -13,7 +13,6 @@ import org.springframework.stereotype.Repository;
 @Slf4j
 public class ScheduleRepositoryAdapter implements ScheduleRepository {
 
-    @Lazy
     private final ScheduleJpaRepository scheduleJpaRepository;
 
     @Override

@@ -5,9 +5,12 @@ import com._7.bookinghospital.hospital_service.domain.repository.HospitalReposit
 import com._7.bookinghospital.hospital_service.infrastructure.repository.jpa.HospitalJpaRepository;
 import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -23,22 +26,22 @@ public class HospitalRepositoryImpl implements HospitalRepository {
     }
 
     @Override
-    public Hospital findOneHospital(UUID id) {
-        return hospitalJpaRepository
-                .findById(id)
-                .orElseThrow(() -> new NotFoundException("조회하신 병원 정보가 존재하지 않습니다."));
+    public Optional<Hospital> findByHospitalId(UUID id) {
+        return hospitalJpaRepository.findById(id);
     }
 
     @Override
-    public List<Hospital> findAllHospitals() {
-        List<Hospital> hospitalList = hospitalJpaRepository.findAll();
+    public Page<Hospital> findAllHospitals(Pageable pageable) {
+        Page<Hospital> hospitalList = hospitalJpaRepository.findAll(pageable);
         // 어플에 등록된 병원이 하나도 없을 때 예외 발생
         if(hospitalList.isEmpty()) throw new NotFoundException("등록된 병원이 없어 조회하실 수 없습니다.");
         return hospitalList;
     }
 
+    // 내부용
     @Override
-    public boolean existsHospital(UUID id) {
-        return hospitalJpaRepository.existsById(id);
+    public Optional<List<Hospital>> findAll() {
+        // Optional 이 리스트를 감싸서 반환
+        return Optional.of(hospitalJpaRepository.findAll());
     }
 }

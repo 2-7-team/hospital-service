@@ -1,11 +1,11 @@
 package com._7.bookinghospital.hospital_service.domain.model;
 
+import bookinghospital.common_module.BaseEntity;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneScheduleResponseDto;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalTime;
@@ -15,7 +15,6 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @Table(name = "p_schedules")
-@ToString
 public class Schedule extends BaseEntity {
     @Id
     // @GeneratedValue(strategy = GenerationType.IDENTITY)

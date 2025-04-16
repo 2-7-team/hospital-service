@@ -5,12 +5,20 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Getter
 @Builder
 @ToString
+@Slf4j
 public class CreateHospitalRequestDto {
         @NotBlank(message = "병원 이름은 필수입니다.")
         private String name;
@@ -29,4 +37,23 @@ public class CreateHospitalRequestDto {
 
         @NotNull(message = "병원 영업 마감 시간은 필수입니다.")
         private LocalTime closeHour;
+
+
+        public Optional<Map<String, String>> isValid( BindingResult result) {
+                List<FieldError> fieldErrors = result.getFieldErrors();
+                Map<String, String> response = new HashMap<>();
+
+                // 1. 클라이언트가 전달한 필드의 값에(데이터가) 유효성 문제가 있다면
+                // fieldErrors.size() != 0
+                if(!fieldErrors.isEmpty()) {
+                        // 에러가 발생한 필드 이름과 에러 메시지를 꺼내서 Map 에 담기.
+                        fieldErrors.forEach(fieldError -> {
+                                String fieldName = fieldError.getField();
+                                String message = fieldError.getDefaultMessage();
+                                response.put(fieldName, message);
+                        });
+                        return Optional.of(response);
+                }
+                return Optional.empty(); // Optional<Map<String, String>>
+        }
 }
