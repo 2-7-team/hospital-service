@@ -34,10 +34,10 @@ public class HospitalController {
         log.info("병원등록 - create(), dto: {}", dto);
         /*log.info("userInfo: {}", userInfo.getUserId());*/
 
-        Optional<Map<String, String>> dtoValid = dto.isValid(result);
+        Map<String, String> dtoValid = dto.isValid(result);
 
-        if(dtoValid.isPresent()) {
-            return ResponseEntity.badRequest().body(dtoValid.get());
+        if(!dtoValid.isEmpty()) {
+            return ResponseEntity.badRequest().body(dtoValid);
         }
 
         // 2. (완료) dto 저장

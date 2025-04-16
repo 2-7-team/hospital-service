@@ -7,4 +7,5 @@ import java.util.UUID;
 
 // DB 와 연결, JPA
 public interface HospitalJpaRepository extends JpaRepository<Hospital, UUID> {
+    boolean existsByPhone(String phone);
 }
