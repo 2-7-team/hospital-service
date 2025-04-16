@@ -4,6 +4,7 @@ import com._7.bookinghospital.hospital_service.application.service.HospitalServi
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.response.HospitalWithSchedulesResponse;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -16,10 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -116,5 +114,15 @@ public class HospitalController {
     }
 
     // (예정) 등록된 병원 정보의 전체 스케쥴
+    // 리뷰 서비스에서 요청할 모든 병원 정보와 각 병원이 등록한 모든 스케쥴
+    @GetMapping("/internal/all")
+    public ResponseEntity<List<HospitalWithSchedulesResponse>> findAllInfo(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        log.info("요청 uri: {}", uri );
+
+        List<HospitalWithSchedulesResponse> response = hospitalService.findAllInfo();
+
+        return ResponseEntity.ok().body(response);
+    }
 
 }

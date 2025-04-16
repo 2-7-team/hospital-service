@@ -47,7 +47,7 @@ public class Hospital extends BaseEntity {
     List<Schedule> schedules = new ArrayList<>();
 
     // 정적 팩토리 메서드
-    public static Hospital of(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
+    public static Hospital create(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
         return new Hospital(name, address, phone, description, openHour, closeHour);
     }
 
