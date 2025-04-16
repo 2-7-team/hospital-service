@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/schedule/{hospitalId}")
+@RequestMapping("/api/schedules/{hospitalId}")
 @Slf4j
 public class ScheduleController {
     private final ScheduleService scheduleService;
@@ -34,7 +34,8 @@ public class ScheduleController {
     }
 
     // 특정 병원의 특정 운영시간대의 진료 가능 환자수 정보를 담은 (하나의) 행을 반환한다.
-    @GetMapping ("/{scheduleId}")// default: /api/schedule/{hospitalId}
+    // localhost:19091/api/hospitals/{hospitalId}/{scheduleId}
+    @GetMapping ("/{scheduleId}")
     public ResponseEntity<?> findOneScheduleByHospital(@PathVariable UUID hospitalId,
                                                        @PathVariable UUID scheduleId) {
         log.info("schedule controller - hospitalId: {}, scheduleId: {}", hospitalId, scheduleId);

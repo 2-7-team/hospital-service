@@ -100,7 +100,7 @@ public class Hospital extends BaseEntity {
     }
 
     public void add(Schedule schedule) {
-        schedule.changeHospital(this);
+        // schedule.changeHospital(this);
         this.schedules.add(schedule);
     }
 }

@@ -1,11 +1,11 @@
 package com._7.bookinghospital.hospital_service.domain.model;
 
 import bookinghospital.common_module.BaseEntity;
-import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneScheduleResponseDto;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalTime;
@@ -15,6 +15,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @Table(name = "p_schedules")
+@Slf4j
 public class Schedule extends BaseEntity {
     @Id
     // @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,17 +40,14 @@ public class Schedule extends BaseEntity {
         this.capacity = capacity;
     }
 
-    // (예정) 도메인 계층에서 presentation 의 dto 를 사용하는 것은 계층 위배, 추후 개선
-    public FindOneScheduleResponseDto toFindOneScheduleResponseDto() {
-        return new FindOneScheduleResponseDto (this.hospital.getName(), this.time, this.capacity);
-    }
-
     // 운영시간대별 진료 가능 환자수 변경에 사용될 메서드
     public void updateCapacity(Integer capacity) {
         this.capacity = capacity;
     }
 
     public void changeHospital(Hospital hospital) {
+        log.info("changeHospital 첫 줄, hospital: {}", this.hospital.getId());
         this.hospital = hospital;
+        log.info("hospital 대입후: {}", this.hospital.getId());
     }
 }

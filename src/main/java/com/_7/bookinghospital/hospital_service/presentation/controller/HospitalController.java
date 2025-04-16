@@ -1,5 +1,7 @@
 package com._7.bookinghospital.hospital_service.presentation.controller;
 
+import bookinghospital.common_module.userInfo.UserDetails;
+import bookinghospital.common_module.userInfo.UserInfo;
 import com._7.bookinghospital.hospital_service.application.service.HospitalService;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
@@ -17,7 +19,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -29,10 +34,10 @@ public class HospitalController {
     // 병원 등록하기, 권한: 병원 관계자
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                    BindingResult result
-                                    /*@UserInfo UserDetails userInfo*/) {
+                                    BindingResult result,
+                                    @UserInfo UserDetails userDetail) {
         log.info("병원등록 - create(), dto: {}", dto);
-        /*log.info("userInfo: {}", userInfo.getUserId());*/
+        log.info("userId: {}, role: {}", userDetail.getUserId(), userDetail.getRole());
 
         Map<String, String> dtoValid = dto.isValid(result);
 

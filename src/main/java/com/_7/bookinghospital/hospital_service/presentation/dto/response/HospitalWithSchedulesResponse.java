@@ -1,8 +1,8 @@
 package com._7.bookinghospital.hospital_service.presentation.dto.response;
 
 // 계층 위반 발생
+
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
-import com._7.bookinghospital.hospital_service.domain.model.Schedule;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -39,7 +39,7 @@ public class HospitalWithSchedulesResponse {
         this.createdBy = hospital.getCreatedBy();
         this.schedules = hospital.getSchedules()
                 .stream()
-                .map(Schedule::toFindOneScheduleResponseDto)
+                .map(FindOneScheduleResponseDto::toResponse)
                 .toList();
     }
 
