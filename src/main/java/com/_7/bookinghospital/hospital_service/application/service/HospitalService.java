@@ -1,5 +1,6 @@
 package com._7.bookinghospital.hospital_service.application.service;
 
+import bookinghospital.common_module.userInfo.UserDetails;
 import com._7.bookinghospital.hospital_service.application.exception.DuplicateException;
 import com._7.bookinghospital.hospital_service.application.exception.NotExistHospitalException;
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
@@ -9,7 +10,6 @@ import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHo
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.HospitalWithSchedulesResponse;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
 import java.util.*;
 
 @Service
@@ -28,7 +29,15 @@ public class HospitalService {
     private final HospitalRepository hospitalRepository;
 
     @Transactional
-    public UUID create(@Valid CreateHospitalRequestDto dto) {
+    public UUID create(CreateHospitalRequestDto dto, UserDetails userDetails) throws AccessDeniedException {
+        // 권한 확인
+        String role = userDetails.getRole();
+        Long userId = userDetails.getUserId();
+
+        if (!role.equals("ROLE_HOSPITAL")) {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
+        }
+
         /*
         Hospital hospital = Hospital.createHospitalBuilder()
                 .name(dto.getName())
@@ -50,7 +59,7 @@ public class HospitalService {
         // (문제) 정적 팩토리 메서드 매개변수로 전달하는 값들을 더 간단히 작성할 수 있는 방법이 있는지
         // *** builder 사용시 작성 텍스트가 정적 팩토리 메서드보다 많으나 매개변수 매칭에 있어 편리하다.
         Hospital hospital = Hospital
-                .create(dto.getName(), dto.getAddress(), dto.getPhone(), dto.getDescription(), dto.getOpenHour(), dto.getCloseHour());
+                .create(dto.getName(), dto.getAddress(), dto.getPhone(), dto.getDescription(), dto.getOpenHour(), dto.getCloseHour(), userId);
 
         Hospital saved = hospitalRepository.save(hospital);
 
@@ -75,41 +84,54 @@ public class HospitalService {
     }
 
     @Transactional
-    public UpdateHospitalResponseDto updateHospitalInfo(UUID hospitalId, UpdateHospitalRequestDto updateHospitalInfo) {
+    public UpdateHospitalResponseDto updateHospitalInfo(UUID hospitalId, UpdateHospitalRequestDto updateHospitalInfo, UserDetails userDetails) throws AccessDeniedException {
+        // 권한 확인
+        String role = userDetails.getRole();
+        Long userId = userDetails.getUserId();
+
         // 1. 업데이트할 병원 정보 존재하는지 고유 식별자(UUID hospitalId) 기반으로 병원 정보 확인하기
         Hospital findOneHospital = checkDbAndDelete(hospitalId);
 
-        // hospitalId 기반 병원 정보 존재시
-        // 2. 병원 정보 수정 요청 값 유효성 검증하기
-        Map<String, Object> extractUpdateFields = updateHospitalInfo.extractUpdateFields();
+        if(role.equals("ROLE_HOSPITAL") && findOneHospital.getUserId().equals(userId)) {
+            // hospitalId 기반 병원 정보 존재시
+            // 2. 병원 정보 수정 요청 값 유효성 검증하기
+            Map<String, Object> extractUpdateFields = updateHospitalInfo.extractUpdateFields();
 
-        // 2-1. 업데이트 요청 데이터가 하나도 전달되지 않았다면 예외 발생 시키기
-        if(extractUpdateFields.isEmpty()) {
-            throw new IllegalArgumentException("수정할 데이터가 없습니다. 수정할 항목을 다시 확인해주세요.");
+            // 2-1. 업데이트 요청 데이터가 하나도 전달되지 않았다면 예외 발생 시키기
+            if(extractUpdateFields.isEmpty()) {
+                throw new IllegalArgumentException("수정할 데이터가 없습니다. 수정할 항목을 다시 확인해주세요.");
+            }
+
+            // key-value (entry) Set 에 담기
+            Set<Map.Entry<String, Object>> entries = extractUpdateFields.entrySet();
+
+            // 3. 클라이언트가 수정 요청한 병원 정보 수정하기
+            Hospital updatedHospitalInfo = findOneHospital.exchangeInfo(entries);
+
+            // 4. 수정한 필드의 값으로 db에 저장하기
+            Hospital saved = hospitalRepository.save(updatedHospitalInfo);
+
+            return new UpdateHospitalResponseDto(saved);
+        } else {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
         }
-
-        // key-value (entry) Set 에 담기
-        Set<Map.Entry<String, Object>> entries = extractUpdateFields.entrySet();
-
-        // 3. 클라이언트가 수정 요청한 병원 정보 수정하기
-        Hospital updatedHospitalInfo = findOneHospital.exchangeInfo(entries);
-
-        // 4. 수정한 필드의 값으로 db에 저장하기
-        Hospital saved = hospitalRepository.save(updatedHospitalInfo);
-
-        return new UpdateHospitalResponseDto(saved);
     }
 
     @Transactional
-    public void delete(UUID hospitalId) {
-        // (삭제 예정) 임의 사용자 정보
-        Long userId = 100L;
-
+    public void delete(UUID hospitalId, UserDetails userDetails) throws AccessDeniedException {
         Hospital deleteHospital = checkDbAndDelete(hospitalId);
 
-        deleteHospital.delete(userId);
+        // 권한 확인
+        Long userId = userDetails.getUserId();
+        String role = userDetails.getRole();
 
-        hospitalRepository.save(deleteHospital);
+        if(role.equals("ROLE_MASTER") ||
+                (role.equals("ROLE_HOSPITAL") && deleteHospital.getUserId().equals(userId))) {
+            deleteHospital.delete(userId);
+            hospitalRepository.save(deleteHospital);
+        } else {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
+        }
     }
 
     // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
