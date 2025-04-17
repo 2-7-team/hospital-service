@@ -1,5 +1,7 @@
 package com._7.bookinghospital.hospital_service.presentation.controller;
 
+import bookinghospital.common_module.userInfo.UserDetails;
+import bookinghospital.common_module.userInfo.UserInfo;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateScheduleRequestDto;
 import com._7.bookinghospital.hospital_service.application.service.ScheduleService;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.CreateScheduleResponseDto;
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,12 +26,14 @@ import java.util.UUID;
 public class ScheduleController {
     private final ScheduleService scheduleService;
 
+    // 병원 일정 생성 권한은 병원 관계자에게만 있고, 해당 병원을 등록한 계정이어야 함.
     @PostMapping
     public ResponseEntity<CreateScheduleResponseDto> create(@PathVariable UUID hospitalId,
                                     @Valid @RequestBody CreateScheduleRequestDto dto,
-                                    BindingResult bindingResult) {
+                                    BindingResult bindingResult,
+                                    @UserInfo UserDetails userDetails) throws AccessDeniedException {
         log.info("schedule create POST - dto : {}", dto);
-        CreateScheduleResponseDto responseDto = scheduleService.create(hospitalId, dto);
+        CreateScheduleResponseDto responseDto = scheduleService.create(hospitalId, dto, userDetails);
         // 리소스 생성이므로 HttpStatusCode 는 HttpStatus.CREATED 를 반환
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
@@ -44,7 +49,7 @@ public class ScheduleController {
     }
 
     // 특정 병원의 운영시간대별 진료 가능 환자수 정보를 담은 모든 행을 반환한다.
-    @GetMapping// default: /api/schedule/{hospitalId}
+    @GetMapping
     public ResponseEntity<List<FindOneScheduleResponseDto>> findAllSchedules(@PathVariable UUID hospitalId) {
         List<FindOneScheduleResponseDto> schedules = scheduleService.findAllSchedules(hospitalId);
         return ResponseEntity.ok().body(schedules);
@@ -55,18 +60,21 @@ public class ScheduleController {
     @PatchMapping("/{scheduleId}")
     public ResponseEntity<FindOneScheduleResponseDto> updateSchedule(@PathVariable UUID hospitalId,
                                             @PathVariable UUID scheduleId,
-                                            @RequestBody Map<String, Integer> request) {
+                                            @RequestBody Map<String, Integer> request,
+                                            @UserInfo UserDetails userDetails) throws AccessDeniedException {
         // 필드 한 개만 전달받기 때문에 Map 타입을 사용함.
         log.info("request.get('capacity'): {}", request.get("capacity"));
-        FindOneScheduleResponseDto updated = scheduleService.updateSchedule(hospitalId, scheduleId, request.get("capacity"));
+        FindOneScheduleResponseDto updated =
+                scheduleService.updateSchedule(hospitalId, scheduleId, request.get("capacity"), userDetails);
         return ResponseEntity.ok().body(updated);
     }
 
     @DeleteMapping("/{scheduleId}")
     public ResponseEntity<Void> delete(@PathVariable UUID hospitalId,
-                                    @PathVariable UUID scheduleId) {
-        scheduleService.delete(hospitalId, scheduleId);
+                                    @PathVariable UUID scheduleId,
+                                       @UserInfo UserDetails userDetails)
+            throws AccessDeniedException {
+        scheduleService.delete(hospitalId, scheduleId, userDetails);
         return ResponseEntity.noContent().build();
     }
-
 }
