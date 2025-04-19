@@ -46,19 +46,24 @@ public class Hospital extends BaseEntity {
     @OneToMany(mappedBy = "hospital", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     List<Schedule> schedules = new ArrayList<>();
 
+    @Column(nullable = false)
+    private Long userId; // createdBy 와 userId
+
     // 정적 팩토리 메서드
-    public static Hospital create(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
-        return new Hospital(name, address, phone, description, openHour, closeHour);
+    public static Hospital create(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour, Long userId) {
+        return new Hospital(name, address, phone, description, openHour, closeHour, userId);
     }
 
     @Builder
-    private Hospital(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour) {
+    private Hospital(String name, String address, String phone, String description, LocalTime openHour, LocalTime closeHour, Long userId) {
         this.name = name;
         this.address = address;
         this.phone = phone;
         this.description = description;
         this.openHour = openHour;
         this.closeHour = closeHour;
+        this.createdBy = userId;
+        this.userId = userId;
     }
 
     public Hospital exchangeInfo(Set<Map.Entry<String, Object>> entries) {
@@ -100,7 +105,7 @@ public class Hospital extends BaseEntity {
     }
 
     public void add(Schedule schedule) {
-        schedule.changeHospital(this);
+        // schedule.changeHospital(this);
         this.schedules.add(schedule);
     }
 }

@@ -1,5 +1,7 @@
 package com._7.bookinghospital.hospital_service.presentation.controller;
 
+import bookinghospital.common_module.userInfo.UserDetails;
+import bookinghospital.common_module.userInfo.UserInfo;
 import com._7.bookinghospital.hospital_service.application.service.HospitalService;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
@@ -17,7 +19,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.*;
+import java.nio.file.AccessDeniedException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -29,19 +35,25 @@ public class HospitalController {
     // 병원 등록하기, 권한: 병원 관계자
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                    BindingResult result
-                                    /*@UserInfo UserDetails userInfo*/) {
-        log.info("병원등록 - create(), dto: {}", dto);
-        /*log.info("userInfo: {}", userInfo.getUserId());*/
+                                    BindingResult result,
+                                    @UserInfo UserDetails userDetails
+                                    /* HttpServletRequest request */) throws AccessDeniedException {
+//        log.info("병원등록 - create(), dto: {}", dto);
+//        log.info("userDetail: {}", userDetail);
+//        log.info("userId: {}, role: {}", userDetail.getUserId(), userDetail.getRole());
+//
+//        String userId = request.getHeader("X-User-Id");
+//        String userName = request.getHeader("X-User-Name");
+//        String userRole = request.getHeader("X-User-Role");
+//        log.info("직접받은 userId: {}, userName: {}, userRole: {}", userId, userName, userRole);
+        Map<String, String> dtoValid = dto.isValid(result);
 
-        Optional<Map<String, String>> dtoValid = dto.isValid(result);
-
-        if(dtoValid.isPresent()) {
-            return ResponseEntity.badRequest().body(dtoValid.get());
+        if(!dtoValid.isEmpty()) {
+            return ResponseEntity.badRequest().body(dtoValid);
         }
 
         // 2. (완료) dto 저장
-        UUID hospitalId = hospitalService.create(dto);
+        UUID hospitalId = hospitalService.create(dto, userDetails);
 
         URI uri = UriComponentsBuilder.fromUriString("/{hospitalId}")
                 .buildAndExpand(hospitalId)
@@ -79,8 +91,9 @@ public class HospitalController {
     // 병원 정보 수정하기 - 권한: 병원 관계자(해당 병원을 등록한 사람)
     @PatchMapping("/{hospitalId}")
     public ResponseEntity<UpdateHospitalResponseDto> updateHospitalInfo(@PathVariable UUID hospitalId,
-                                                                        @RequestBody UpdateHospitalRequestDto updateDto) {
-        UpdateHospitalResponseDto updateHospitalResponseDto = hospitalService.updateHospitalInfo(hospitalId, updateDto);
+                                                                        @RequestBody UpdateHospitalRequestDto updateDto,
+                                                                        @UserInfo UserDetails userDetails) throws AccessDeniedException {
+        UpdateHospitalResponseDto updateHospitalResponseDto = hospitalService.updateHospitalInfo(hospitalId, updateDto, userDetails);
         // 200 HttpStatusCode 와 함께 찾은 리소스를 반환함.
         // 리소스 변경 요청이 성공적으로 처리되었을 때, 클라이언트에 HttpStatusCode 로 200을 전달한다.
         return ResponseEntity.ok().body(updateHospitalResponseDto);
@@ -90,8 +103,9 @@ public class HospitalController {
     // 권한: MASTER, 병원 관계자(해당 병원을 등록한 사람)
     // (문제) updatedBy 에 userId 가 삽입 안됨.
     @DeleteMapping("/{hospitalId}")
-    public ResponseEntity<Void> delete(@PathVariable UUID hospitalId) {
-        hospitalService.delete(hospitalId);
+    public ResponseEntity<Void> delete(@PathVariable UUID hospitalId,
+                                       @UserInfo UserDetails userDetails) throws AccessDeniedException {
+        hospitalService.delete(hospitalId, userDetails);
         // 삭제 요청이 성공적으로 이루어졌을 때 HttpStatus.NO_CONTENT(204) 를 반환함.
         return ResponseEntity.noContent().build();
     }

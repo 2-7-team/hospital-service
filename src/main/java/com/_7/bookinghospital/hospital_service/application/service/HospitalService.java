@@ -1,22 +1,26 @@
 package com._7.bookinghospital.hospital_service.application.service;
 
+import bookinghospital.common_module.userInfo.UserDetails;
+import com._7.bookinghospital.hospital_service.application.exception.DuplicateException;
 import com._7.bookinghospital.hospital_service.application.exception.NotExistHospitalException;
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
+import com._7.bookinghospital.hospital_service.infrastructure.repository.feign.ReviewFeignClient;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.HospitalWithSchedulesResponse;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.UpdateHospitalResponseDto;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
 import java.util.*;
 
 @Service
@@ -25,9 +29,18 @@ import java.util.*;
 @Slf4j
 public class HospitalService {
     private final HospitalRepository hospitalRepository;
+    private final ReviewFeignClient reviewFeignClient;
 
     @Transactional
-    public UUID create(@Valid CreateHospitalRequestDto dto) {
+    public UUID create(CreateHospitalRequestDto dto, UserDetails userDetails) throws AccessDeniedException {
+        // 권한 확인
+        String role = userDetails.getRole();
+        Long userId = userDetails.getUserId();
+
+        if (!role.equals("ROLE_HOSPITAL")) {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
+        }
+
         /*
         Hospital hospital = Hospital.createHospitalBuilder()
                 .name(dto.getName())
@@ -38,11 +51,18 @@ public class HospitalService {
                 .closeHour(dto.getCloseHour())
                 .build();
         */
+        // 1. (완료) db 에 저장하기 전 중복 체크
+        // 병원명, 주소는 동일할 수 있으나 전화번호가 같을 순 없음.
+        // 전화번호 중복 체크
+        if(hospitalRepository.existsByPhone(dto.getPhone())) {
+            throw new DuplicateException("이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
+        }
 
         // 정적 팩토리 메서드 패턴 이용
         // (문제) 정적 팩토리 메서드 매개변수로 전달하는 값들을 더 간단히 작성할 수 있는 방법이 있는지
-        //  → 여기서 계층간 dto 를 따로 작성할 필요성을 느낌
-        Hospital hospital = Hospital.create(dto.getName(), dto.getAddress(), dto.getPhone(), dto.getDescription(), dto.getOpenHour(), dto.getCloseHour());
+        // *** builder 사용시 작성 텍스트가 정적 팩토리 메서드보다 많으나 매개변수 매칭에 있어 편리하다.
+        Hospital hospital = Hospital
+                .create(dto.getName(), dto.getAddress(), dto.getPhone(), dto.getDescription(), dto.getOpenHour(), dto.getCloseHour(), userId);
 
         Hospital saved = hospitalRepository.save(hospital);
 
@@ -53,7 +73,26 @@ public class HospitalService {
     public FindOneHospitalResponseDto findOneHospital(UUID hospitalId) {
         // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
         Hospital findHospital = checkDbAndDelete(hospitalId);
-        return new FindOneHospitalResponseDto(findHospital);
+        // 위 코드를 통과했다면 hospitalId == findHospital.getId()
+
+        Float averageRating = 0.0F;
+
+        try {
+            ResponseEntity<Float> response =
+                    reviewFeignClient.getResponse(findHospital.getId());
+
+            if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                averageRating = response.getBody();
+            } else { // ex. 리뷰 서비스에서 병원 id 에 해당하는 리뷰가 없는 경우 -> Not Found
+                // HttpStatusCode 가 200 번대가 아닌 경우
+                log.warn("hospitalId: {}, 리뷰 서비스 응답 실패, httpStatusCode: {}", findHospital.getId(), response.getStatusCode().value());
+            }
+        } catch (Exception e) {
+            // ex. 네트워크 문제, 리뷰 서비스 다운 등등...
+            log.error("hospitalId: {}, 리뷰 서비스의 별점 조회 메서드 호출중 예외 발생", findHospital.getId());
+            log.error("예외 발생 메시지: {}", e.getMessage());
+        }
+        return new FindOneHospitalResponseDto(findHospital, averageRating);
     }
 
     // 병원 목록 조회
@@ -63,45 +102,76 @@ public class HospitalService {
         Pageable pageable = PageRequest.of(pageNo, size);
 
         Page<Hospital> hospitalList = hospitalRepository.findAllHospitals(pageable);
-        return hospitalList.map(FindOneHospitalResponseDto::new);
+
+        // Page.map() 은 stream 으로 바꾸지 않고, 각 요소를 dto 로 변환할 수 있다.
+        return hospitalList
+                .map(hospital -> {
+                    Float averageRating = 0.0F;
+                    try {
+                        ResponseEntity<Float> response
+                                = reviewFeignClient.getResponse(hospital.getId());
+                        if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                            averageRating = response.getBody();
+                        } else {
+                            log.warn("hospitalId: {}, 리뷰 서비스로부터 예외 반환 받음, httpStatusCode: {}", hospital.getId(), response.getStatusCode().value());
+                        }
+                    } catch (Exception e) {
+                        log.error("hospitalId: {}, 리뷰 서비스 호출중 에러 발생: {}", hospital.getId(), e.getMessage());
+                    } // 예외 처리
+
+                    return new FindOneHospitalResponseDto(hospital, averageRating);
+                });
     }
 
     @Transactional
-    public UpdateHospitalResponseDto updateHospitalInfo(UUID hospitalId, UpdateHospitalRequestDto updateHospitalInfo) {
+    public UpdateHospitalResponseDto updateHospitalInfo(UUID hospitalId, UpdateHospitalRequestDto updateHospitalInfo, UserDetails userDetails) throws AccessDeniedException {
+        // 권한 확인
+        String role = userDetails.getRole();
+        Long userId = userDetails.getUserId();
+
         // 1. 업데이트할 병원 정보 존재하는지 고유 식별자(UUID hospitalId) 기반으로 병원 정보 확인하기
         Hospital findOneHospital = checkDbAndDelete(hospitalId);
 
-        // hospitalId 기반 병원 정보 존재시
-        // 2. 병원 정보 수정 요청 값 유효성 검증하기
-        Map<String, Object> extractUpdateFields = updateHospitalInfo.extractUpdateFields();
+        if(role.equals("ROLE_HOSPITAL") && findOneHospital.getUserId().equals(userId)) {
+            // hospitalId 기반 병원 정보 존재시
+            // 2. 병원 정보 수정 요청 값 유효성 검증하기
+            Map<String, Object> extractUpdateFields = updateHospitalInfo.extractUpdateFields();
 
-        // 2-1. 업데이트 요청 데이터가 하나도 전달되지 않았다면 예외 발생 시키기
-        if(extractUpdateFields.isEmpty()) {
-            throw new IllegalArgumentException("수정할 데이터가 없습니다. 수정할 항목을 다시 확인해주세요.");
+            // 2-1. 업데이트 요청 데이터가 하나도 전달되지 않았다면 예외 발생 시키기
+            if(extractUpdateFields.isEmpty()) {
+                throw new IllegalArgumentException("수정할 데이터가 없습니다. 수정할 항목을 다시 확인해주세요.");
+            }
+
+            // key-value (entry) Set 에 담기
+            Set<Map.Entry<String, Object>> entries = extractUpdateFields.entrySet();
+
+            // 3. 클라이언트가 수정 요청한 병원 정보 수정하기
+            Hospital updatedHospitalInfo = findOneHospital.exchangeInfo(entries);
+
+            // 4. 수정한 필드의 값으로 db에 저장하기
+            Hospital saved = hospitalRepository.save(updatedHospitalInfo);
+
+            return new UpdateHospitalResponseDto(saved);
+        } else {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
         }
-
-        // key-value (entry) Set 에 담기
-        Set<Map.Entry<String, Object>> entries = extractUpdateFields.entrySet();
-
-        // 3. 클라이언트가 수정 요청한 병원 정보 수정하기
-        Hospital updatedHospitalInfo = findOneHospital.exchangeInfo(entries);
-
-        // 4. 수정한 필드의 값으로 db에 저장하기
-        Hospital saved = hospitalRepository.save(updatedHospitalInfo);
-
-        return new UpdateHospitalResponseDto(saved);
     }
 
     @Transactional
-    public void delete(UUID hospitalId) {
-        // (삭제 예정) 임의 사용자 정보
-        Long userId = 100L;
-
+    public void delete(UUID hospitalId, UserDetails userDetails) throws AccessDeniedException {
         Hospital deleteHospital = checkDbAndDelete(hospitalId);
 
-        deleteHospital.delete(userId);
+        // 권한 확인
+        Long userId = userDetails.getUserId();
+        String role = userDetails.getRole();
 
-        hospitalRepository.save(deleteHospital);
+        if(role.equals("ROLE_MASTER") ||
+                (role.equals("ROLE_HOSPITAL") && deleteHospital.getUserId().equals(userId))) {
+            deleteHospital.delete(userId);
+            hospitalRepository.save(deleteHospital);
+        } else {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
+        }
     }
 
     // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지

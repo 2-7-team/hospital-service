@@ -44,4 +44,9 @@ public class HospitalRepositoryImpl implements HospitalRepository {
         // Optional 이 리스트를 감싸서 반환
         return Optional.of(hospitalJpaRepository.findAll());
     }
+
+    @Override
+    public boolean existsByPhone(String phone) {
+        return hospitalJpaRepository.existsByPhone(phone);
+    }
 }

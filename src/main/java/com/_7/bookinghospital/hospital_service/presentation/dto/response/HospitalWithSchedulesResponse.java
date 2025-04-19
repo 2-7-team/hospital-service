@@ -1,8 +1,8 @@
 package com._7.bookinghospital.hospital_service.presentation.dto.response;
 
 // 계층 위반 발생
+
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
-import com._7.bookinghospital.hospital_service.domain.model.Schedule;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -21,7 +21,6 @@ public class HospitalWithSchedulesResponse {
     private String description; // 병원 소개글
     private LocalTime openHour; // 병원 영업 오픈 시각
     private LocalTime closeHour; // 병원 영업 마감 시각
-    // (의문) 계층 위반인데, response 폴더를 다시 application 계층으로 옮겨야 할까?
     private List<FindOneScheduleResponseDto> schedules = new ArrayList<>();
     protected LocalDateTime createdAt;
     // userId(유저 식별 id)
@@ -39,7 +38,7 @@ public class HospitalWithSchedulesResponse {
         this.createdBy = hospital.getCreatedBy();
         this.schedules = hospital.getSchedules()
                 .stream()
-                .map(Schedule::toFindOneScheduleResponseDto)
+                .map(FindOneScheduleResponseDto::toResponse)
                 .toList();
     }
 
