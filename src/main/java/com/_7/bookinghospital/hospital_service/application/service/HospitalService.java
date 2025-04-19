@@ -5,6 +5,7 @@ import com._7.bookinghospital.hospital_service.application.exception.DuplicateEx
 import com._7.bookinghospital.hospital_service.application.exception.NotExistHospitalException;
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
+import com._7.bookinghospital.hospital_service.infrastructure.repository.feign.ReviewFeignClient;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.UpdateHospitalRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneHospitalResponseDto;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.*;
 @Slf4j
 public class HospitalService {
     private final HospitalRepository hospitalRepository;
+    private final ReviewFeignClient reviewFeignClient;
 
     @Transactional
     public UUID create(CreateHospitalRequestDto dto, UserDetails userDetails) throws AccessDeniedException {
@@ -70,7 +73,26 @@ public class HospitalService {
     public FindOneHospitalResponseDto findOneHospital(UUID hospitalId) {
         // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
         Hospital findHospital = checkDbAndDelete(hospitalId);
-        return new FindOneHospitalResponseDto(findHospital);
+        // 위 코드를 통과했다면 hospitalId == findHospital.getId()
+
+        Float averageRating = 0.0F;
+
+        try {
+            ResponseEntity<Float> response =
+                    reviewFeignClient.getResponse(findHospital.getId());
+
+            if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                averageRating = response.getBody();
+            } else { // ex. 리뷰 서비스에서 병원 id 에 해당하는 리뷰가 없는 경우 -> Not Found
+                // HttpStatusCode 가 200 번대가 아닌 경우
+                log.warn("hospitalId: {}, 리뷰 서비스 응답 실패, httpStatusCode: {}", findHospital.getId(), response.getStatusCode().value());
+            }
+        } catch (Exception e) {
+            // ex. 네트워크 문제, 리뷰 서비스 다운 등등...
+            log.error("hospitalId: {}, 리뷰 서비스의 별점 조회 메서드 호출중 예외 발생", findHospital.getId());
+            log.error("예외 발생 메시지: {}", e.getMessage());
+        }
+        return new FindOneHospitalResponseDto(findHospital, averageRating);
     }
 
     // 병원 목록 조회
@@ -80,7 +102,25 @@ public class HospitalService {
         Pageable pageable = PageRequest.of(pageNo, size);
 
         Page<Hospital> hospitalList = hospitalRepository.findAllHospitals(pageable);
-        return hospitalList.map(FindOneHospitalResponseDto::new);
+
+        // Page.map() 은 stream 으로 바꾸지 않고, 각 요소를 dto 로 변환할 수 있다.
+        return hospitalList
+                .map(hospital -> {
+                    Float averageRating = 0.0F;
+                    try {
+                        ResponseEntity<Float> response
+                                = reviewFeignClient.getResponse(hospital.getId());
+                        if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                            averageRating = response.getBody();
+                        } else {
+                            log.warn("hospitalId: {}, 리뷰 서비스로부터 예외 반환 받음, httpStatusCode: {}", hospital.getId(), response.getStatusCode().value());
+                        }
+                    } catch (Exception e) {
+                        log.error("hospitalId: {}, 리뷰 서비스 호출중 에러 발생: {}", hospital.getId(), e.getMessage());
+                    } // 예외 처리
+
+                    return new FindOneHospitalResponseDto(hospital, averageRating);
+                });
     }
 
     @Transactional

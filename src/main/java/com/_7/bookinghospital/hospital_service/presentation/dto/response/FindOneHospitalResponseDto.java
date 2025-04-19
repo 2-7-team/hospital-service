@@ -27,7 +27,6 @@ public class FindOneHospitalResponseDto {
 
     private LocalTime closeHour; // 병원 영업 마감 시각
 
-    // (의문) 계층 위반인데, response 폴더를 다시 application 계층으로 옮겨야 할까?
     private List<Schedule> schedules = new ArrayList<>();
 
     // (예정) 신규 표시를 하기 위해 로직에 필요한 데이터
@@ -36,8 +35,9 @@ public class FindOneHospitalResponseDto {
     // userId(유저 식별 id)
     protected Long createdBy;
 
-    // (예정) 람다식으로 간단하게 나타낼 수 없을까? 정적 팩토리 메서드? 빌더 패턴?
-    public FindOneHospitalResponseDto(Hospital hospital) {
+    private Float averageRating;
+
+    public FindOneHospitalResponseDto(Hospital hospital, Float averageRating) {
         this.id = hospital.getId();
         this.name = hospital.getName();
         this.address = hospital.getAddress();
@@ -47,5 +47,6 @@ public class FindOneHospitalResponseDto {
         this.closeHour = hospital.getCloseHour();
         this.createdAt = hospital.getCreatedAt();
         this.createdBy = hospital.getCreatedBy();
+        this.averageRating = averageRating;
     }
 }
