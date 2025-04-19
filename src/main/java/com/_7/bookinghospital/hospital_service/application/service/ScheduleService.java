@@ -14,11 +14,15 @@ import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOne
 import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
+import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -28,7 +32,6 @@ import java.util.UUID;
 public class ScheduleService {
     private final HospitalRepository hospitalRepository;
     private final ScheduleRepository scheduleRepository;
-    private Long userId = 1L; // 임의의 유저 정보
 
     private final ReservationFeignClient reservationFeignClient;
 
@@ -154,7 +157,7 @@ public class ScheduleService {
         Long userId = userDetails.getUserId();
         String role = userDetails.getRole();
         
-        if(role.equals("ROLE_HOSPITAL") && findHospital.getUserId().equals(userId)) {
+        if(role.equals("ROLE_MASTER") || (role.equals("ROLE_HOSPITAL") && findHospital.getUserId().equals(userId))) {
             // 2. 병원 존재 but 해당 병원이 update 할 schedule id 가 없을 때(소프트 삭제 여부도 확인),
             Schedule findSchedule = findHospital
                     // List<Schedule> 빈 리스트일 수 있음.
@@ -172,7 +175,25 @@ public class ScheduleService {
 
             // 4. (예정)예약 서비스로부터 예약 상태를 확인하여 클라이언트로부터 전달받은
             // 진료 가능 환자수(좌석수) 정보를 업데이트할 수 있는지 체크한다.
-            // feignClient 호출 --- 이 부분 로직은 예약 서비스와 논의중
+            LocalTime time = findSchedule.getTime();
+            Integer hour = (Integer)time.getHour();
+
+            Map<String, Integer> request = new HashMap<>();
+            request.put("updateLeftSeat", capacity);
+            request.put("reservationTime", hour);
+
+            ResponseEntity<String> response =
+                    reservationFeignClient.getResponse(findSchedule.getHospital().getId(), request);
+
+            /*
+            * 상태코드 확인
+            * if(response.getStatusCode().value() != 200)
+            * if(response.getStatusCode() != HttpStatus.OK)
+            * */
+            if(!response.getStatusCode().is2xxSuccessful() || response.getBody() == null ||
+                    !response.getBody().equals("성공적으로 수정되었습니다")) {
+                throw new IllegalArgumentException(time+" 시간대 진료 가능 환자수 정보를 업데이트할 수 없습니다.");
+            }
 
             if(findSchedule.getCapacity().equals(capacity)) {
                 throw new RuntimeException("변경하려는 진료 가능 환자 수(좌석수)가 기존과 동일하여 업데이트된 사항이 없습니다.");
