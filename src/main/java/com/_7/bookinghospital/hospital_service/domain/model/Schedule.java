@@ -2,6 +2,7 @@ package com._7.bookinghospital.hospital_service.domain.model;
 
 import bookinghospital.common_module.BaseEntity;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,8 +14,8 @@ import java.util.UUID;
 
 @Entity
 @Getter
-@NoArgsConstructor
-@Table(name = "p_schedules")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "p_schedule")
 @Slf4j
 public class Schedule extends BaseEntity {
     @Id
