@@ -55,7 +55,7 @@ public class HospitalService {
         // 병원명, 주소는 동일할 수 있으나 전화번호가 같을 순 없음.
         // 전화번호 중복 체크
         if(hospitalRepository.existsByPhone(dto.getPhone())) {
-            throw new DuplicateException("이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
+            throw new DuplicateException(dto.getPhone()+ " 은 이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
         }
 
         // 정적 팩토리 메서드 패턴 이용
@@ -195,22 +195,16 @@ public class HospitalService {
     @Transactional
     public List<HospitalWithSchedulesResponse> findAllInfo() {
         // 1. 병원 목록 존재하는지 먼저 확인
-        Optional<List<Hospital>> result = hospitalRepository.findAll();
+        List<Hospital> result = hospitalRepository.findAll();
+        // List 가 반환됐지만 비어 있을 수 있음, 병원이 존재하는지 확인
         if(result.isEmpty()) {
-            // Optional 객체가 감싼게 없다면, null: 병원 목록 자체가 반환되지 않음(List 자체가 반환되지 않음)
-            // (의문) 병원 목록 자체가 반환되지 않았다는 것이 병원 테이블이 존재하지 않는다는 것인가?
-            log.info("Optional.empty");
             throw new NotExistHospitalException("등록된 병원이 존재하지 않습니다.");
         }
-        // List 가 반환됐지만 비어 있을 수 있음, 병원이 존재하는지 확인
-        // (의문) Optional 객체 안에 List 타입이 없는 거랑 List 타입이 반환됐지만 List 가 비어있는 경우가 어떤 경우인지?
-        List<Hospital> hospitals = result.get();
-        if(hospitals.isEmpty())
-            throw new NotExistHospitalException("등록된 병원이 존재하지 않습니다.");
 
         // 2. 병원들은 모두 각 스케쥴 전부를 담아서 반환한다.
         // 스케쥴이 없는 병원의 경우 제외한다. filter 기능 사용
-        return hospitals.stream()
+        return result
+                .stream()
                 .filter(hospital-> !hospital.getSchedules().isEmpty())
                 .map(HospitalWithSchedulesResponse::new)
                 .toList();

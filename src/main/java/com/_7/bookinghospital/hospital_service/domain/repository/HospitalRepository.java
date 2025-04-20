@@ -15,7 +15,7 @@ public interface HospitalRepository {
     Page<Hospital> findAllHospitals(Pageable pageable);
 
     // 내부용
-    Optional<List<Hospital>> findAll();
+    List<Hospital> findAll();
 
     // (의문) 이미 유효성 검사를 했지만 여기서도 한 번 더 해야할 것인가?
     boolean existsByPhone(@NotBlank(message = "병원 전화번호는 필수입니다.") String phone);

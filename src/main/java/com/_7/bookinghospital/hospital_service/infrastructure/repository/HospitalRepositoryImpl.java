@@ -40,9 +40,9 @@ public class HospitalRepositoryImpl implements HospitalRepository {
 
     // 내부용
     @Override
-    public Optional<List<Hospital>> findAll() {
+    public List<Hospital> findAll() {
         // Optional 이 리스트를 감싸서 반환
-        return Optional.of(hospitalJpaRepository.findAll());
+        return hospitalJpaRepository.findAll();
     }
 
     @Override

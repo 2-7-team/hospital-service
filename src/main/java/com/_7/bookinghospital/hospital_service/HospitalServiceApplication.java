@@ -5,7 +5,10 @@
 	import org.springframework.cloud.openfeign.EnableFeignClients;
 	import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-	@SpringBootApplication
+	@SpringBootApplication(scanBasePackages = {
+			"com._7.bookinghospital.hospital_service",
+			"bookinghospital.common_module"
+	})
 	@EnableJpaAuditing(auditorAwareRef="userInfoAuditorAware")
 	@EnableFeignClients // Spring 이 FeignClient 를 자동으로 스캔, 빈으로 등록하도록 설정
 	public class HospitalServiceApplication {

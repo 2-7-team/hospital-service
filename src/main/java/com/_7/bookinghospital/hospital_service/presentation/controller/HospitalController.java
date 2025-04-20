@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -33,24 +32,19 @@ public class HospitalController {
     private final HospitalService hospitalService;
 
     // 병원 등록하기, 권한: 병원 관계자
+    // @Valid 에서 유효성 에러가 발생하면 자동으로 MethodArgumentValidException 이 던져지고,
+    // common-module 의 GlobalExceptionHandler 의 @ExceptionHandler 가 잡아서 처리함.
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                    BindingResult result,
-                                    @UserInfo UserDetails userDetails
-                                    /* HttpServletRequest request */) throws AccessDeniedException {
-//        log.info("병원등록 - create(), dto: {}", dto);
-//        log.info("userDetail: {}", userDetail);
-//        log.info("userId: {}, role: {}", userDetail.getUserId(), userDetail.getRole());
-//
-//        String userId = request.getHeader("X-User-Id");
-//        String userName = request.getHeader("X-User-Name");
-//        String userRole = request.getHeader("X-User-Role");
-//        log.info("직접받은 userId: {}, userName: {}, userRole: {}", userId, userName, userRole);
-        Map<String, String> dtoValid = dto.isValid(result);
+                                    // BindingResult result,
+                                    @UserInfo UserDetails userDetails) throws AccessDeniedException {
 
+        /* Map<String, String> dtoValid = dto.isValid(result);
         if(!dtoValid.isEmpty()) {
             return ResponseEntity.badRequest().body(dtoValid);
-        }
+        } */
+
+        // 1. dto 의 유효성 문제 있을 경우 common-module 의 전역 예외 처리에서 캐치
 
         // 2. (완료) dto 저장
         UUID hospitalId = hospitalService.create(dto, userDetails);
@@ -111,8 +105,8 @@ public class HospitalController {
     }
 
     // (완료) 리뷰 서비스에서 병원 존재 여부 확인하는 internal api 작성
-    // (예정) 예외 처리
-    // httpStatus: 404, {error: "존재하지 않습니다."}
+    // (완료) 예외 처리
+    // httpStatus: 404, 문자열 타입으로 "존재하지 않습니다." 반환
     @GetMapping("/internal/{hospitalId}")
     public ResponseEntity<Map<String, UUID>> checkHospital(@PathVariable UUID hospitalId,
                                                              HttpServletRequest request) {
@@ -127,7 +121,6 @@ public class HospitalController {
         return ResponseEntity.ok().body(response);
     }
 
-    // (예정) 등록된 병원 정보의 전체 스케쥴
     // 리뷰 서비스에서 요청할 모든 병원 정보와 각 병원이 등록한 모든 스케쥴
     @GetMapping("/internal/all")
     public ResponseEntity<List<HospitalWithSchedulesResponse>> findAllInfo(HttpServletRequest request) {

@@ -56,7 +56,7 @@ public class ScheduleService {
                         .filter(schedule -> schedule.getTime().equals(dto.getTime()))
                         .findAny() // 클라이언트로부터 전달받은 시간과 db 에 저장된 시간이 일치하는 행이 하나라도 있다면,
                         .ifPresent(matched -> {
-                            throw new DuplicateException("이미 등록되어 있는 시간입니다.");
+                            throw new DuplicateException(dto.getTime()+" 은 이미 등록되어 있는 시간입니다.");
                         });
             }
 
