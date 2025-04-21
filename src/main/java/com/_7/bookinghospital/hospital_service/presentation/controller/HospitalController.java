@@ -35,7 +35,7 @@ public class HospitalController {
     // @Valid 에서 유효성 에러가 발생하면 자동으로 MethodArgumentValidException 이 던져지고,
     // common-module 의 GlobalExceptionHandler 의 @ExceptionHandler 가 잡아서 처리함.
     @PostMapping
-    public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
+    public ResponseEntity<Void> create(@Valid @RequestBody CreateHospitalRequestDto dto,
                                     // BindingResult result,
                                     @UserInfo UserDetails userDetails) throws AccessDeniedException {
 
