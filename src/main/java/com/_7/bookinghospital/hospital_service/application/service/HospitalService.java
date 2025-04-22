@@ -33,39 +33,10 @@ public class HospitalService {
 
     @Transactional
     public UUID create(CreateHospitalRequestDto dto, UserDetails userDetails) throws AccessDeniedException {
-        // 권한 확인
-        String role = userDetails.getRole();
-        Long userId = userDetails.getUserId();
-
-        if (!role.equals("ROLE_HOSPITAL")) {
-            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
-        }
-
-        /*
-        Hospital hospital = Hospital.createHospitalBuilder()
-                .name(dto.getName())
-                .phone(dto.getPhone())
-                .description(dto.getDescription())
-                .address(dto.getAddress())
-                .openHour(dto.getOpenHour())
-                .closeHour(dto.getCloseHour())
-                .build();
-        */
-        // 1. (완료) db 에 저장하기 전 중복 체크
-        // 병원명, 주소는 동일할 수 있으나 전화번호가 같을 순 없음.
-        // 전화번호 중복 체크
-        if(hospitalRepository.existsByPhone(dto.getPhone())) {
-            throw new DuplicateException(dto.getPhone()+ " 은 이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
-        }
-
-        // 정적 팩토리 메서드 패턴 이용
-        // (문제) 정적 팩토리 메서드 매개변수로 전달하는 값들을 더 간단히 작성할 수 있는 방법이 있는지
-        // *** builder 사용시 작성 텍스트가 정적 팩토리 메서드보다 많으나 매개변수 매칭에 있어 편리하다.
-        Hospital hospital = Hospital
-                .create(dto.getName(), dto.getAddress(), dto.getPhone(), dto.getDescription(), dto.getOpenHour(), dto.getCloseHour(), userId);
-
+        isHospitalRole(userDetails);
+        isExistPhone(dto);
+        Hospital hospital = dto.toEntity(userDetails.getUserId());
         Hospital saved = hospitalRepository.save(hospital);
-
         return saved.getId();
     }
 
@@ -208,5 +179,19 @@ public class HospitalService {
                 .filter(hospital-> !hospital.getSchedules().isEmpty())
                 .map(HospitalWithSchedulesResponse::new)
                 .toList();
+    }
+
+    public void isHospitalRole(UserDetails userDetails) throws AccessDeniedException{
+        String role = userDetails.getRole();
+        if(!role.equals("ROLE_HOSPITAL")) {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
+        }
+    }
+
+    public void isExistPhone(CreateHospitalRequestDto dto) {
+        String phoneNumber = dto.getPhone();
+        if(hospitalRepository.existsByPhone(phoneNumber)) {
+            throw new DuplicateException(phoneNumber+ " 은 이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
+        }
     }
 }
