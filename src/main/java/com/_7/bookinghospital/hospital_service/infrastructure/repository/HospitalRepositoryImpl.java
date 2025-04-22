@@ -1,10 +1,12 @@
 package com._7.bookinghospital.hospital_service.infrastructure.repository;
 
+import com._7.bookinghospital.hospital_service.application.exception.NotExistHospitalException;
 import com._7.bookinghospital.hospital_service.domain.model.Hospital;
 import com._7.bookinghospital.hospital_service.domain.repository.HospitalRepository;
 import com._7.bookinghospital.hospital_service.infrastructure.repository.jpa.HospitalJpaRepository;
 import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,7 @@ import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
+@Slf4j
 // 도메인>레포지토리의 인터페이스 HospitalRepository 를 인프라스트럭쳐>레포지토리 에서 구현하고,
 // 인프라스트럭쳐>레포지토리>jpa 의 인터페이스(db 연결, SimpleJpaRepository 가 구현체) 를 필드로 갖는다.
 public class HospitalRepositoryImpl implements HospitalRepository {
@@ -40,13 +43,20 @@ public class HospitalRepositoryImpl implements HospitalRepository {
 
     // 내부용
     @Override
-    public Optional<List<Hospital>> findAll() {
+    public List<Hospital> findAll() {
         // Optional 이 리스트를 감싸서 반환
-        return Optional.of(hospitalJpaRepository.findAll());
+        return hospitalJpaRepository.findAll();
     }
 
     @Override
     public boolean existsByPhone(String phone) {
         return hospitalJpaRepository.existsByPhone(phone);
+    }
+
+    @Override
+    public Hospital isActiveHospital(UUID hospitalId) {
+        return hospitalJpaRepository.isActiveHospital(hospitalId).orElseThrow(
+                () -> new NotExistHospitalException("조회하신 병원은 존재하지 않습니다. 다시 확인해주세요.")
+        );
     }
 }

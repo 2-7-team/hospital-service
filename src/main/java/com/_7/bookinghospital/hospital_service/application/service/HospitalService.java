@@ -33,94 +33,23 @@ public class HospitalService {
 
     @Transactional
     public UUID create(CreateHospitalRequestDto dto, UserDetails userDetails) throws AccessDeniedException {
-        // 권한 확인
-        String role = userDetails.getRole();
-        Long userId = userDetails.getUserId();
-
-        if (!role.equals("ROLE_HOSPITAL")) {
-            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
-        }
-
-        /*
-        Hospital hospital = Hospital.createHospitalBuilder()
-                .name(dto.getName())
-                .phone(dto.getPhone())
-                .description(dto.getDescription())
-                .address(dto.getAddress())
-                .openHour(dto.getOpenHour())
-                .closeHour(dto.getCloseHour())
-                .build();
-        */
-        // 1. (완료) db 에 저장하기 전 중복 체크
-        // 병원명, 주소는 동일할 수 있으나 전화번호가 같을 순 없음.
-        // 전화번호 중복 체크
-        if(hospitalRepository.existsByPhone(dto.getPhone())) {
-            throw new DuplicateException("이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
-        }
-
-        // 정적 팩토리 메서드 패턴 이용
-        // (문제) 정적 팩토리 메서드 매개변수로 전달하는 값들을 더 간단히 작성할 수 있는 방법이 있는지
-        // *** builder 사용시 작성 텍스트가 정적 팩토리 메서드보다 많으나 매개변수 매칭에 있어 편리하다.
-        Hospital hospital = Hospital
-                .create(dto.getName(), dto.getAddress(), dto.getPhone(), dto.getDescription(), dto.getOpenHour(), dto.getCloseHour(), userId);
-
+        isHospitalRole(userDetails);
+        isExistPhone(dto);
+        Hospital hospital = dto.toEntity(userDetails.getUserId());
         Hospital saved = hospitalRepository.save(hospital);
-
         return saved.getId();
     }
 
-    // 병원 단건 조회
     public FindOneHospitalResponseDto findOneHospital(UUID hospitalId) {
-        // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
-        Hospital findHospital = checkDbAndDelete(hospitalId);
-        // 위 코드를 통과했다면 hospitalId == findHospital.getId()
-
-        Float averageRating = 0.0F;
-
-        try {
-            ResponseEntity<Float> response =
-                    reviewFeignClient.getResponse(findHospital.getId());
-
-            if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                averageRating = response.getBody();
-            } else { // ex. 리뷰 서비스에서 병원 id 에 해당하는 리뷰가 없는 경우 -> Not Found
-                // HttpStatusCode 가 200 번대가 아닌 경우
-                log.warn("hospitalId: {}, 리뷰 서비스 응답 실패, httpStatusCode: {}", findHospital.getId(), response.getStatusCode().value());
-            }
-        } catch (Exception e) {
-            // ex. 네트워크 문제, 리뷰 서비스 다운 등등...
-            log.error("hospitalId: {}, 리뷰 서비스의 별점 조회 메서드 호출중 예외 발생", findHospital.getId());
-            log.error("예외 발생 메시지: {}", e.getMessage());
-        }
-        return new FindOneHospitalResponseDto(findHospital, averageRating);
+        log.info("hospitalId:{}",hospitalId);
+        Hospital hospital = isActiveHospital(hospitalId);
+        return getFindOneHospitalWithRating(hospital);
     }
 
-    // 병원 목록 조회
     public Page<FindOneHospitalResponseDto> findAllHospitals(int page, int size) {
-        // 페이지네이션
-        int pageNo = (page != 0)? (page - 1): page;
-        Pageable pageable = PageRequest.of(pageNo, size);
-
+        Pageable pageable = PageRequest.of(page-1, size);
         Page<Hospital> hospitalList = hospitalRepository.findAllHospitals(pageable);
-
-        // Page.map() 은 stream 으로 바꾸지 않고, 각 요소를 dto 로 변환할 수 있다.
-        return hospitalList
-                .map(hospital -> {
-                    Float averageRating = 0.0F;
-                    try {
-                        ResponseEntity<Float> response
-                                = reviewFeignClient.getResponse(hospital.getId());
-                        if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                            averageRating = response.getBody();
-                        } else {
-                            log.warn("hospitalId: {}, 리뷰 서비스로부터 예외 반환 받음, httpStatusCode: {}", hospital.getId(), response.getStatusCode().value());
-                        }
-                    } catch (Exception e) {
-                        log.error("hospitalId: {}, 리뷰 서비스 호출중 에러 발생: {}", hospital.getId(), e.getMessage());
-                    } // 예외 처리
-
-                    return new FindOneHospitalResponseDto(hospital, averageRating);
-                });
+        return hospitalList.map(this::getFindOneHospitalWithRating);
     }
 
     @Transactional
@@ -174,7 +103,6 @@ public class HospitalService {
         }
     }
 
-    // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
     private Hospital checkDbAndDelete(UUID hospitalId) {
         // db 에 병원 정보 존재 여부
         Hospital findHospital = hospitalRepository.findByHospitalId(hospitalId)
@@ -195,24 +123,59 @@ public class HospitalService {
     @Transactional
     public List<HospitalWithSchedulesResponse> findAllInfo() {
         // 1. 병원 목록 존재하는지 먼저 확인
-        Optional<List<Hospital>> result = hospitalRepository.findAll();
+        List<Hospital> result = hospitalRepository.findAll();
+        // List 가 반환됐지만 비어 있을 수 있음, 병원이 존재하는지 확인
         if(result.isEmpty()) {
-            // Optional 객체가 감싼게 없다면, null: 병원 목록 자체가 반환되지 않음(List 자체가 반환되지 않음)
-            // (의문) 병원 목록 자체가 반환되지 않았다는 것이 병원 테이블이 존재하지 않는다는 것인가?
-            log.info("Optional.empty");
             throw new NotExistHospitalException("등록된 병원이 존재하지 않습니다.");
         }
-        // List 가 반환됐지만 비어 있을 수 있음, 병원이 존재하는지 확인
-        // (의문) Optional 객체 안에 List 타입이 없는 거랑 List 타입이 반환됐지만 List 가 비어있는 경우가 어떤 경우인지?
-        List<Hospital> hospitals = result.get();
-        if(hospitals.isEmpty())
-            throw new NotExistHospitalException("등록된 병원이 존재하지 않습니다.");
 
         // 2. 병원들은 모두 각 스케쥴 전부를 담아서 반환한다.
         // 스케쥴이 없는 병원의 경우 제외한다. filter 기능 사용
-        return hospitals.stream()
+        return result
+                .stream()
                 .filter(hospital-> !hospital.getSchedules().isEmpty())
                 .map(HospitalWithSchedulesResponse::new)
                 .toList();
+    }
+
+    // ---------------------------------------------------------------------------------------
+
+    public void isHospitalRole(UserDetails userDetails) throws AccessDeniedException{
+        String role = userDetails.getRole();
+        if(!role.equals("ROLE_HOSPITAL")) {
+            throw new AccessDeniedException("권한 불가로 해당 서비스에 접근할 수 없습니다.");
+        }
+    }
+
+    public void isExistPhone(CreateHospitalRequestDto dto) {
+        String phoneNumber = dto.getPhone();
+        if(hospitalRepository.existsByPhone(phoneNumber)) {
+            throw new DuplicateException(phoneNumber+ " 은 이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
+        }
+    }
+
+    public Hospital isActiveHospital(UUID hospitalId) {
+        return hospitalRepository.isActiveHospital(hospitalId);
+    }
+
+    private FindOneHospitalResponseDto getFindOneHospitalWithRating(Hospital hospital) {
+        UUID id = hospital.getId();
+        Float averageRating = 0.0F;
+
+        try {
+            ResponseEntity<Float> response = reviewFeignClient.getResponse(id);
+            if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                averageRating = response.getBody();
+            } else {
+                log.warn("hospitalId: {}, 리뷰 서비스 응답 실패, httpStatusCode: {}",
+                        id,
+                        response.getStatusCode().value()
+                );
+            }
+        } catch (Exception e) {
+            log.error("hospitalId: {}, 리뷰 서비스의 별점 조회 메서드 호출중 예외 발생", id);
+            log.error("예외 발생 메시지: {}", e.getMessage());
+        }
+        return new FindOneHospitalResponseDto(hospital, averageRating);
     }
 }

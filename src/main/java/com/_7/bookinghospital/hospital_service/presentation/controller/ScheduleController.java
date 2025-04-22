@@ -2,18 +2,17 @@ package com._7.bookinghospital.hospital_service.presentation.controller;
 
 import bookinghospital.common_module.userInfo.UserDetails;
 import bookinghospital.common_module.userInfo.UserInfo;
-import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateScheduleRequestDto;
 import com._7.bookinghospital.hospital_service.application.service.ScheduleService;
-import com._7.bookinghospital.hospital_service.presentation.dto.response.CreateScheduleResponseDto;
+import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateScheduleRequestDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneScheduleResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Map;
@@ -27,15 +26,22 @@ public class ScheduleController {
     private final ScheduleService scheduleService;
 
     // 병원 일정 생성 권한은 병원 관계자에게만 있고, 해당 병원을 등록한 계정이어야 함.
+    // ResponseEntity body 에 담은 데이터 없음: Void,
+    // Location header 에 uri 값 설정되어 반환됨.
     @PostMapping
-    public ResponseEntity<CreateScheduleResponseDto> create(@PathVariable UUID hospitalId,
+    public ResponseEntity<Void> create(@PathVariable UUID hospitalId,
                                     @Valid @RequestBody CreateScheduleRequestDto dto,
-                                    BindingResult bindingResult,
+                                    // BindingResult bindingResult,
                                     @UserInfo UserDetails userDetails) throws AccessDeniedException {
         log.info("schedule create POST - dto : {}", dto);
-        CreateScheduleResponseDto responseDto = scheduleService.create(hospitalId, dto, userDetails);
-        // 리소스 생성이므로 HttpStatusCode 는 HttpStatus.CREATED 를 반환
-        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
+        UUID newScheduleUUID = scheduleService.create(hospitalId, dto, userDetails);
+
+        // 리소스 생성이므로 HttpStatusCode 는 HttpStatus.CREATED 를 반환하면서 생성된 일정의 고유 식별자를 반환한다.
+        URI uri = UriComponentsBuilder.fromUriString("/{scheduleId}")
+                .buildAndExpand(newScheduleUUID)
+                .toUri();
+
+        return ResponseEntity.created(uri).build();
     }
 
     // 특정 병원의 특정 운영시간대의 진료 가능 환자수 정보를 담은 (하나의) 행을 반환한다.

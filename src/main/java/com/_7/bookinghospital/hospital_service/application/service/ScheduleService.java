@@ -9,7 +9,6 @@ import com._7.bookinghospital.hospital_service.domain.repository.HospitalReposit
 import com._7.bookinghospital.hospital_service.domain.repository.ScheduleRepository;
 import com._7.bookinghospital.hospital_service.infrastructure.repository.feign.ReservationFeignClient;
 import com._7.bookinghospital.hospital_service.presentation.dto.request.CreateScheduleRequestDto;
-import com._7.bookinghospital.hospital_service.presentation.dto.response.CreateScheduleResponseDto;
 import com._7.bookinghospital.hospital_service.presentation.dto.response.FindOneScheduleResponseDto;
 import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +34,7 @@ public class ScheduleService {
 
     private final ReservationFeignClient reservationFeignClient;
 
-    public CreateScheduleResponseDto create(UUID hospitalId,
+    public UUID create(UUID hospitalId,
                                             CreateScheduleRequestDto dto,
                                             UserDetails userDetails) throws AccessDeniedException {
         log.info("schedule service");
@@ -56,7 +55,7 @@ public class ScheduleService {
                         .filter(schedule -> schedule.getTime().equals(dto.getTime()))
                         .findAny() // 클라이언트로부터 전달받은 시간과 db 에 저장된 시간이 일치하는 행이 하나라도 있다면,
                         .ifPresent(matched -> {
-                            throw new DuplicateException("이미 등록되어 있는 시간입니다.");
+                            throw new DuplicateException(dto.getTime()+" 은 이미 등록되어 있는 시간입니다.");
                         });
             }
 
@@ -94,12 +93,11 @@ public class ScheduleService {
             findHospital.add(saved);
 
             // 7. 저장된 Schedule 객체를(saved) 가공해서 컨트롤러로 전달.
-            return new CreateScheduleResponseDto(saved);
+            // return new CreateScheduleResponseDto(saved);
+            return saved.getId();
         } else {
             throw new AccessDeniedException("권한불가로 해당 서비스에 접근할 수 없습니다.");
         }
-
-
     }
 
     public FindOneScheduleResponseDto findOneScheduleByHospital(UUID hospitalId, UUID scheduleId) {

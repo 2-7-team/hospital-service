@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -32,58 +31,27 @@ import java.util.UUID;
 public class HospitalController {
     private final HospitalService hospitalService;
 
-    // 병원 등록하기, 권한: 병원 관계자
     @PostMapping
-    public ResponseEntity<?> create(@Valid @RequestBody CreateHospitalRequestDto dto,
-                                    BindingResult result,
-                                    @UserInfo UserDetails userDetails
-                                    /* HttpServletRequest request */) throws AccessDeniedException {
-//        log.info("병원등록 - create(), dto: {}", dto);
-//        log.info("userDetail: {}", userDetail);
-//        log.info("userId: {}, role: {}", userDetail.getUserId(), userDetail.getRole());
-//
-//        String userId = request.getHeader("X-User-Id");
-//        String userName = request.getHeader("X-User-Name");
-//        String userRole = request.getHeader("X-User-Role");
-//        log.info("직접받은 userId: {}, userName: {}, userRole: {}", userId, userName, userRole);
-        Map<String, String> dtoValid = dto.isValid(result);
-
-        if(!dtoValid.isEmpty()) {
-            return ResponseEntity.badRequest().body(dtoValid);
-        }
-
-        // 2. (완료) dto 저장
+    public ResponseEntity<Void> create(@Valid @RequestBody CreateHospitalRequestDto dto,
+                                    @UserInfo UserDetails userDetails) throws AccessDeniedException {
         UUID hospitalId = hospitalService.create(dto, userDetails);
-
         URI uri = UriComponentsBuilder.fromUriString("/{hospitalId}")
                 .buildAndExpand(hospitalId)
                 .toUri();
-        log.info("uri: {}", uri);
-
-        // 3. (완료) 리소스가 성공적으로 생성되어서 201과 생성된 병원 정보(리소스 가공)를 반환하기
-        // 4. (완료) 생성된 병원 정보를 조회하는 uri 클라이언트에 전달.
-        //     : header 에 key 가 Location, value 가 저장된 병원의 id 값을 담아서 클라이언트에 반환됨 → 포스트 맨으로 확인 완료
-        // 5. (예정) 테스트 코드 작성
         return ResponseEntity.created(uri).build();
     }
 
-    // 병원 정보 단건 조회 - 권한: ALL
     @GetMapping("/{hospitalId}")
     public ResponseEntity<FindOneHospitalResponseDto> findOneHospital(@PathVariable UUID hospitalId) {
         FindOneHospitalResponseDto findHospital = hospitalService.findOneHospital(hospitalId);
-        // 200 HttpStatusCode 와 함께 찾은 리소스를 반환함.
         return ResponseEntity.ok().body(findHospital);
     }
 
-    // 병원 목록 조회 - 권한: ALL
-    @GetMapping // /api/hospitals?page=1&size=10&search=검색어
+    @GetMapping
     public ResponseEntity<Page<FindOneHospitalResponseDto>> findAllHospitals(
-            // 클라이언트가 선택한 페이지 번호
-            @RequestParam(required = false, defaultValue = "0") int page,
-            // 한 페이지에 보여줄 병원 정보 수, 10개가 기본 값
+            @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size
     ) {
-        log.info("page: {}, size: {}", page, size);
         Page<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals(page, size);
         return ResponseEntity.ok().body(allHospitals);
     }
@@ -111,8 +79,8 @@ public class HospitalController {
     }
 
     // (완료) 리뷰 서비스에서 병원 존재 여부 확인하는 internal api 작성
-    // (예정) 예외 처리
-    // httpStatus: 404, {error: "존재하지 않습니다."}
+    // (완료) 예외 처리
+    // httpStatus: 404, 문자열 타입으로 "존재하지 않습니다." 반환
     @GetMapping("/internal/{hospitalId}")
     public ResponseEntity<Map<String, UUID>> checkHospital(@PathVariable UUID hospitalId,
                                                              HttpServletRequest request) {
@@ -127,7 +95,6 @@ public class HospitalController {
         return ResponseEntity.ok().body(response);
     }
 
-    // (예정) 등록된 병원 정보의 전체 스케쥴
     // 리뷰 서비스에서 요청할 모든 병원 정보와 각 병원이 등록한 모든 스케쥴
     @GetMapping("/internal/all")
     public ResponseEntity<List<HospitalWithSchedulesResponse>> findAllInfo(HttpServletRequest request) {
