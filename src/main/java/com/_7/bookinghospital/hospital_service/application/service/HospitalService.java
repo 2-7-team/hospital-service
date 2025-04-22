@@ -40,58 +40,16 @@ public class HospitalService {
         return saved.getId();
     }
 
-    // 병원 단건 조회
     public FindOneHospitalResponseDto findOneHospital(UUID hospitalId) {
-        // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
-        Hospital findHospital = checkDbAndDelete(hospitalId);
-        // 위 코드를 통과했다면 hospitalId == findHospital.getId()
-
-        Float averageRating = 0.0F;
-
-        try {
-            ResponseEntity<Float> response =
-                    reviewFeignClient.getResponse(findHospital.getId());
-
-            if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                averageRating = response.getBody();
-            } else { // ex. 리뷰 서비스에서 병원 id 에 해당하는 리뷰가 없는 경우 -> Not Found
-                // HttpStatusCode 가 200 번대가 아닌 경우
-                log.warn("hospitalId: {}, 리뷰 서비스 응답 실패, httpStatusCode: {}", findHospital.getId(), response.getStatusCode().value());
-            }
-        } catch (Exception e) {
-            // ex. 네트워크 문제, 리뷰 서비스 다운 등등...
-            log.error("hospitalId: {}, 리뷰 서비스의 별점 조회 메서드 호출중 예외 발생", findHospital.getId());
-            log.error("예외 발생 메시지: {}", e.getMessage());
-        }
-        return new FindOneHospitalResponseDto(findHospital, averageRating);
+        log.info("hospitalId:{}",hospitalId);
+        Hospital hospital = isActiveHospital(hospitalId);
+        return getFindOneHospitalWithRating(hospital);
     }
 
-    // 병원 목록 조회
     public Page<FindOneHospitalResponseDto> findAllHospitals(int page, int size) {
-        // 페이지네이션
-        int pageNo = (page != 0)? (page - 1): page;
-        Pageable pageable = PageRequest.of(pageNo, size);
-
+        Pageable pageable = PageRequest.of(page-1, size);
         Page<Hospital> hospitalList = hospitalRepository.findAllHospitals(pageable);
-
-        // Page.map() 은 stream 으로 바꾸지 않고, 각 요소를 dto 로 변환할 수 있다.
-        return hospitalList
-                .map(hospital -> {
-                    Float averageRating = 0.0F;
-                    try {
-                        ResponseEntity<Float> response
-                                = reviewFeignClient.getResponse(hospital.getId());
-                        if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                            averageRating = response.getBody();
-                        } else {
-                            log.warn("hospitalId: {}, 리뷰 서비스로부터 예외 반환 받음, httpStatusCode: {}", hospital.getId(), response.getStatusCode().value());
-                        }
-                    } catch (Exception e) {
-                        log.error("hospitalId: {}, 리뷰 서비스 호출중 에러 발생: {}", hospital.getId(), e.getMessage());
-                    } // 예외 처리
-
-                    return new FindOneHospitalResponseDto(hospital, averageRating);
-                });
+        return hospitalList.map(this::getFindOneHospitalWithRating);
     }
 
     @Transactional
@@ -145,7 +103,6 @@ public class HospitalService {
         }
     }
 
-    // checkDbAndDelete(UUID id): db 에 병원이 존재하는지 && 소프트 삭제 됐는지
     private Hospital checkDbAndDelete(UUID hospitalId) {
         // db 에 병원 정보 존재 여부
         Hospital findHospital = hospitalRepository.findByHospitalId(hospitalId)
@@ -181,6 +138,8 @@ public class HospitalService {
                 .toList();
     }
 
+    // ---------------------------------------------------------------------------------------
+
     public void isHospitalRole(UserDetails userDetails) throws AccessDeniedException{
         String role = userDetails.getRole();
         if(!role.equals("ROLE_HOSPITAL")) {
@@ -193,5 +152,30 @@ public class HospitalService {
         if(hospitalRepository.existsByPhone(phoneNumber)) {
             throw new DuplicateException(phoneNumber+ " 은 이미 등록된 전화번호 입니다. 다른 번호를 등록해주세요.");
         }
+    }
+
+    public Hospital isActiveHospital(UUID hospitalId) {
+        return hospitalRepository.isActiveHospital(hospitalId);
+    }
+
+    private FindOneHospitalResponseDto getFindOneHospitalWithRating(Hospital hospital) {
+        UUID id = hospital.getId();
+        Float averageRating = 0.0F;
+
+        try {
+            ResponseEntity<Float> response = reviewFeignClient.getResponse(id);
+            if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                averageRating = response.getBody();
+            } else {
+                log.warn("hospitalId: {}, 리뷰 서비스 응답 실패, httpStatusCode: {}",
+                        id,
+                        response.getStatusCode().value()
+                );
+            }
+        } catch (Exception e) {
+            log.error("hospitalId: {}, 리뷰 서비스의 별점 조회 메서드 호출중 예외 발생", id);
+            log.error("예외 발생 메시지: {}", e.getMessage());
+        }
+        return new FindOneHospitalResponseDto(hospital, averageRating);
     }
 }

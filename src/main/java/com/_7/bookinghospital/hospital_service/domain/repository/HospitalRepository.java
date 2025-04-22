@@ -15,4 +15,5 @@ public interface HospitalRepository {
     Page<Hospital> findAllHospitals(Pageable pageable);
     List<Hospital> findAll();
     boolean existsByPhone(@NotBlank(message = "병원 전화번호는 필수입니다.") String phone);
+    Hospital isActiveHospital(UUID hospitalId);
 }

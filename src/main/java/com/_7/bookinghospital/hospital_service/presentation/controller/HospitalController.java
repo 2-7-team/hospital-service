@@ -34,33 +34,24 @@ public class HospitalController {
     @PostMapping
     public ResponseEntity<Void> create(@Valid @RequestBody CreateHospitalRequestDto dto,
                                     @UserInfo UserDetails userDetails) throws AccessDeniedException {
-
         UUID hospitalId = hospitalService.create(dto, userDetails);
-
         URI uri = UriComponentsBuilder.fromUriString("/{hospitalId}")
                 .buildAndExpand(hospitalId)
                 .toUri();
-
         return ResponseEntity.created(uri).build();
     }
 
-    // 병원 정보 단건 조회 - 권한: ALL
     @GetMapping("/{hospitalId}")
     public ResponseEntity<FindOneHospitalResponseDto> findOneHospital(@PathVariable UUID hospitalId) {
         FindOneHospitalResponseDto findHospital = hospitalService.findOneHospital(hospitalId);
-        // 200 HttpStatusCode 와 함께 찾은 리소스를 반환함.
         return ResponseEntity.ok().body(findHospital);
     }
 
-    // 병원 목록 조회 - 권한: ALL
-    @GetMapping // /api/hospitals?page=1&size=10&search=검색어
+    @GetMapping
     public ResponseEntity<Page<FindOneHospitalResponseDto>> findAllHospitals(
-            // 클라이언트가 선택한 페이지 번호
-            @RequestParam(required = false, defaultValue = "0") int page,
-            // 한 페이지에 보여줄 병원 정보 수, 10개가 기본 값
+            @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size
     ) {
-        log.info("page: {}, size: {}", page, size);
         Page<FindOneHospitalResponseDto> allHospitals = hospitalService.findAllHospitals(page, size);
         return ResponseEntity.ok().body(allHospitals);
     }
